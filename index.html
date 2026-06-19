@@ -389,7 +389,9 @@
                         currentHeaders = res.headers || []; currentDropdowns = res.dropdowns || {};
                         currentHandovers = res.handovers || []; currentRestocks = res.restockLogs || []; currentReplenish = res.replenishLogs || [];
                         currentEqsLogs = res.eqsLogs || []; currentAllWos = res.allWos || []; currentDeductLogs = res.deductLogs || [];
-                        renderTable(res.data || [], userEditAuth.includes(currentSysName));
+                        
+                        // 【關鍵修復】補上正確的「操作」與「編輯」權限參數，編輯按鈕就不會消失了
+                        renderTable(res.data || [], userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName));
                     }
                     processPrefetch();
                 }).withFailureHandler(err => { processPrefetch(); }).getSheetData(targetSheet);
@@ -633,6 +635,52 @@
                 }
                 tableHTML += `</tbody></table></div>`;
             } else { tableHTML += `<div class="p-10 text-center text-gray-400 tracking-wider">目前工作表無表頭，請確認有建立欄位。</div>`; }
+
+            // === 恢復被刪掉的 EIP 交接與公告區塊 ===
+            if (currentSysName === 'EIP') {
+                tableHTML += `<div class="p-6 bg-white border-t border-moBorder mt-2"><div class="flex justify-between items-center mb-6"><h2 class="text-xl font-bold text-moSide border-l-4 border-moSide pl-2">工作交接清單</h2>`;
+                if(hasEditAuth) {
+                    tableHTML += `<div class="flex gap-2">`;
+                    tableHTML += `<button onclick="openModal()" class="bg-gray-200 hover:bg-gray-300 transition-colors text-moSide px-4 py-2 rounded text-sm shadow">＋ 內部公告</button>`;
+                    tableHTML += `<button onclick="openHandoverModal()" class="bg-moSide hover:bg-gray-600 transition-colors text-white px-4 py-2 rounded text-sm shadow">＋ 新增交接</button>`;
+                    tableHTML += `</div>`;
+                }
+                tableHTML += `</div><div class="grid grid-cols-1 md:grid-cols-3 gap-4">`;
+                
+                if(currentHandovers.length === 0) tableHTML += `<p class="text-gray-400 col-span-3 text-center py-4">目前無交接事項</p>`;
+                else {
+                    currentHandovers.forEach(ho => {
+                        let bg = 'bg-green-50 border-green-200', textCol = 'text-green-700', badge = '低';
+                        if(ho.priority === '高') { bg = 'bg-red-50 border-red-200'; textCol = 'text-red-700'; badge = '高'; }
+                        else if(ho.priority === '中') { bg = 'bg-yellow-50 border-yellow-200'; textCol = 'text-yellow-700'; badge = '中'; }
+                        let imgHtml = ho.image ? `<div class="mt-2 text-center"><img src="${ho.image}" class="rounded-md max-h-32 inline-block object-contain border border-gray-200 cursor-pointer shadow-sm hover:opacity-80 transition" onclick="window.open('${ho.image}', '_blank')"></div>` : '';
+                        
+                        tableHTML += `<div class="p-4 rounded-lg border ${bg} relative shadow-sm flex flex-col">`;
+                        if(hasEditAuth) tableHTML += `<button onclick="doDeleteHandover('${ho.time}', this)" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold text-lg leading-none">&times;</button>`;
+                        tableHTML += `<div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white ${ho.priority==='高'?'bg-red-500':(ho.priority==='中'?'bg-yellow-500':'bg-green-500')}">${badge}</span><span class="text-xs text-gray-500">${ho.time}</span></div></div>`;
+                        tableHTML += `<p class="text-xs font-bold text-moSide mb-2 border-b border-gray-200 pb-1">接收人：${ho.assignee}</p>`;
+                        tableHTML += `<p class="${textCol} text-sm font-semibold whitespace-pre-wrap flex-1">${ho.content}</p>`;
+                        tableHTML += imgHtml;
+                        tableHTML += `<p class="text-xs text-gray-500 mt-3 text-right border-t border-white pt-2">- ${ho.creator}</p></div>`;
+                    });
+                }
+                tableHTML += `</div></div>`;
+            }
+
+            // === 恢復被刪掉的 ERP 財務統計看板區塊 ===
+            if (currentSysName === 'ERP') {
+                let totalInventoryValue = 0; let totalUnreceivedValue = 0;
+                currentTableData.forEach(row => { let stock = parseFloat(row['目前庫存']) || 0; let price = parseFloat(row['單價']) || 0; if(stock > 0) totalInventoryValue += (stock * price); });
+                currentReplenish.forEach(rep => {
+                    if (rep.status !== '已結案') {
+                        let remainQty = (parseFloat(rep.reqQty) || 0) - (parseFloat(rep.inQty) || 0);
+                        if (remainQty > 0) { let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === rep.matId); let price = matObj ? (parseFloat(matObj.price) || 0) : 0; totalUnreceivedValue += (remainQty * price); }
+                    }
+                });
+                let financeHtml = `<div class="mb-4 bg-white p-5 rounded-lg border border-moBorder shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4"><div class="flex flex-col md:flex-row gap-6 md:gap-10"><div><span class="text-xs font-bold text-gray-500 block mb-1">總實際庫存金額</span><span class="text-2xl font-bold text-moSide erp-finance-val" data-val="${totalInventoryValue}">$ ***</span></div><div class="md:pl-10 md:border-l border-gray-200"><span class="text-xs font-bold text-gray-500 block mb-1">未進貨金額 (補貨中)</span><span class="text-2xl font-bold text-orange-500 erp-finance-val" data-val="${totalUnreceivedValue}">$ ***</span></div></div><button onclick="toggleErpFinance(this)" class="bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-bold py-2 px-4 rounded border border-gray-300 transition-colors shadow-sm whitespace-nowrap">👁️ 顯示金額</button></div>`;
+                tableHTML = financeHtml + tableHTML; 
+            }
+
             container.innerHTML = tableHTML;
         }
 
