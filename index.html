@@ -371,10 +371,6 @@
             });
             document.getElementById('navMenu').innerHTML = navHtml;
             if(firstSys) loadSystem(firstSys, sysMap[firstSys]);
-
-            // 【修復核心 3】預先載入也必須使用 userViewAuth
-            prefetchQueue = allSys.filter(s => userViewAuth.includes(s) && s !== 'RPT' && s !== firstSys).map(s => sysMap[s]);
-            if(!isPrefetching) processPrefetch();
         }
 
         let prefetchQueue = []; let isPrefetching = false;
