@@ -659,7 +659,7 @@
                         let bg = 'bg-green-50 border-green-200', textCol = 'text-green-700', badge = '低';
                         if(ho.priority === '高') { bg = 'bg-red-50 border-red-200'; textCol = 'text-red-700'; badge = '高'; }
                         else if(ho.priority === '中') { bg = 'bg-yellow-50 border-yellow-200'; textCol = 'text-yellow-700'; badge = '中'; }
-                        let imgHtml = ho.image ? `<div class="mt-2 text-center"><img src="${ho.image}" class="rounded-md max-h-32 inline-block object-contain border border-gray-200 cursor-pointer shadow-sm hover:opacity-80 transition" onclick="window.open('${ho.image}', '_blank')"></div>` : '';
+                        let imgHtml = ho.image ? `<div class="mt-2 text-center"><img src="${ho.image}" class="rounded-md max-h-32 inline-block object-contain border border-gray-200 cursor-pointer shadow-sm hover:opacity-80 transition" onclick="openImageModal(this.src)"></div>` : '';
                         tableHTML += `<div class="p-4 rounded-lg border ${bg} relative shadow-sm flex flex-col">`;
                         if(hasEditAuth) tableHTML += `<button onclick="doDeleteHandover('${ho.time}', this)" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold text-lg leading-none">&times;</button>`;
                         tableHTML += `<div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white ${ho.priority==='高'?'bg-red-500':(ho.priority==='中'?'bg-yellow-500':'bg-green-500')}">${badge}</span><span class="text-xs text-gray-500">${ho.time}</span></div></div>`;
@@ -1003,6 +1003,12 @@
                 document.getElementById('hoImagePreview').classList.remove('hidden');
             };
             reader.readAsDataURL(file);
+        }
+
+        // ================= 點擊交接相片彈出大圖 =================
+        function openImageModal(src) {
+            document.getElementById('largeImageTarget').src = src;
+            document.getElementById('viewImageModal').classList.remove('hidden');
         }
         function submitHandover(btn) {
             const prio = document.getElementById('hoPriority').value; const content = document.getElementById('hoContent').value; const assignee = document.getElementById('hoAssignee').value; const op = document.getElementById('userNameDisplay').innerText;
@@ -1681,6 +1687,12 @@
                 <button onclick="closeModal('changePwdModal')" class="px-4 py-2 text-xs border hover:bg-gray-100 rounded-lg transition-colors">取消</button>
                 <button id="submitPwdBtn" onclick="submitNewPassword(this)" class="px-4 py-2 text-xs bg-moSide hover:bg-gray-600 text-white rounded-lg transition-colors">確認變更</button>
             </div>
+        </div>
+    </div>
+    <div id="viewImageModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex items-center justify-center p-4" onclick="closeModal('viewImageModal')">
+        <div class="relative max-w-4xl max-h-[90vh] bg-white p-2 rounded-xl shadow-2xl flex items-center justify-center" onclick="event.stopPropagation()">
+            <button onclick="closeModal('viewImageModal')" class="absolute -top-3 -right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold shadow-md transition-colors z-10">&times;</button>
+            <img id="largeImageTarget" class="max-w-full max-h-[85vh] object-contain rounded-lg" src="">
         </div>
     </div>
 </body>
