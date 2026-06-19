@@ -73,7 +73,8 @@
             </div>
             <nav class="flex-1 overflow-y-auto py-2 space-y-1" id="navMenu"></nav>
             <div class="p-4 border-t border-gray-600 text-xs text-center bg-gray-800 text-gray-400">
-                登入人員: <span id="userNameDisplay" class="font-bold text-white"></span>
+                <div class="mb-2">登入人員: <span id="userNameDisplay" class="font-bold text-white"></span></div>
+                <button onclick="openChangePwdModal()" class="w-full bg-gray-700 hover:bg-gray-600 text-white py-1 rounded transition-colors tracking-wider">🔐 修改個人密碼</button>
             </div>
         </div>
 
@@ -1517,7 +1518,54 @@
                 btn.innerHTML = '📄 出貨單'; btn.disabled = false;
             }).getSheetData('客戶資料'); 
         }
+
+        // ================= 修改個人密碼控制邏輯 =================
+        function openChangePwdModal() {
+            document.getElementById('oldPwdInput').value = '';
+            document.getElementById('newPwdInput').value = '';
+            document.getElementById('changePwdModal').classList.remove('hidden');
+        }
+
+        function submitNewPassword(btn) {
+            // 從全域顯示字串中，把真正的「員工姓名」切出來 (例如 "王小明 | 廠長" 切出 "王小明")
+            const fullUserString = document.getElementById('userNameDisplay').innerText;
+            const currentUserName = fullUserString.split(' | ')[0].trim();
+            
+            const oldPwd = document.getElementById('oldPwdInput').value;
+            const newPwd = document.getElementById('newPwdInput').value;
+
+            if (!oldPwd || !newPwd) { alert("兩欄皆必須填寫！"); return; }
+            if (newPwd.length < 2) { alert("新密碼長度過短！"); return; }
+
+            btn.innerHTML = '<span class="btn-spinner"></span>變更中'; btn.disabled = true;
+
+            google.script.run.withSuccessHandler(res => {
+                alert(res.msg);
+                btn.innerHTML = '確認變更'; btn.disabled = false;
+                if (res.success) {
+                    closeModal('changePwdModal');
+                    // 修改成功後自動重新整理網頁，要求重新登入
+                    window.location.reload();
+                }
+            }).withFailureHandler(err => {
+                alert("系統異常：" + err);
+                btn.innerHTML = '確認變更'; btn.disabled = false;
+            }).updateUserPassword(currentUserName, oldPwd, newPwd);
+        }
         
     </script>
+    <div id="changePwdModal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl w-full max-w-sm border border-gray-300 flex flex-col shadow-lg overflow-hidden">
+            <div class="p-4 border-b flex justify-between bg-gray-50 font-bold text-gray-700"><span>修改個人密碼</span><button onclick="closeModal('changePwdModal')">&times;</button></div>
+            <div class="p-6 space-y-4">
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">輸入原通行密碼</label><input type="password" id="oldPwdInput" class="w-full p-2 border rounded-lg focus:outline-none focus:border-moSide" placeholder="請確認舊密碼"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">輸入新通行密碼</label><input type="password" id="newPwdInput" class="w-full p-2 border rounded-lg focus:outline-none focus:border-moSide" placeholder="請輸入新密碼"></div>
+            </div>
+            <div class="p-4 border-t flex justify-end gap-2 bg-gray-50">
+                <button onclick="closeModal('changePwdModal')" class="px-4 py-2 text-xs border hover:bg-gray-100 rounded-lg transition-colors">取消</button>
+                <button id="submitPwdBtn" onclick="submitNewPassword(this)" class="px-4 py-2 text-xs bg-moSide hover:bg-gray-600 text-white rounded-lg transition-colors">確認變更</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
