@@ -1189,6 +1189,7 @@
             }
         }
 
+        // ================= 專業宮格式權限矩陣彈窗 =================
         function openModal(rowIndex = -1) {
             editingRowIndex = rowIndex; 
             document.getElementById('modalTitle').innerText = rowIndex !== -1 ? `編輯資料` : `新增資料`;
@@ -1197,12 +1198,13 @@
             const rowData = rowIndex !== -1 ? currentTableData[rowIndex] : {};
 
             let isSysAuth = currentSheet === '權限管理';
+            // 抓取現有的權限字串
             let viewAuthStr = rowData['可視系統'] || '';
             let opAuthStr = rowData['可操作系統'] || '';
             let editAuthStr = rowData['可編輯系統'] || '';
 
             currentHeaders.forEach(header => {
-                // 遇到這三個權限欄位時先跳過，統一在最後方繪製專業宮格
+                // 如果是權限欄位，先跳過不畫，最後統一做成大宮格
                 if (isSysAuth && (header === '可視系統' || header === '可編輯系統' || header === '可操作系統')) {
                     return; 
                 }
@@ -1261,35 +1263,35 @@
                 formGrid.innerHTML += fieldHTML + `</div>`;
             });
 
-            // 繪製【權限宮格矩陣】
+            // 繪製專業宮格權限矩陣 (最左為功能，上方為可視/操作/編輯)
             if (isSysAuth) {
-                const sysList = ['EIP', 'OMS', 'MES', 'ERP', 'EQS', 'EQM', 'CRM', 'SUP', 'RPT', 'SYS'];
-                const sysMap = { 'EIP':'內部公告', 'CRM':'客戶資料', 'SUP':'供應商資料', 'ERP':'物料庫存', 'OMS':'訂單管理', 'MES':'生產工單', 'EQS':'設備狀態', 'EQM':'設備維護', 'RPT':'報表', 'SYS':'權限' };
+                const sysList = ['EIP', 'OMS', 'MES', 'ERP', 'CRM', 'SUP', 'EQS', 'EQM', 'RPT', 'SYS'];
+                const sysMap = { 'EIP':'內部公告', 'CRM':'客戶資料', 'SUP':'供應商資料', 'ERP':'物料庫存', 'OMS':'訂單管理', 'MES':'生產工單', 'EQS':'設備狀態', 'EQM':'設備選單維護', 'RPT':'報表中心', 'SYS':'權限管理' };
                 
                 let gridHtml = `
-                <div class="col-span-1 md:col-span-2 mt-2">
-                    <label class="block text-sm font-bold mb-2 text-moSide border-l-4 border-moSide pl-2">系統權限矩陣設定</label>
+                <div class="col-span-1 md:col-span-2 mt-4">
+                    <label class="block text-sm font-bold mb-2 text-moSide border-l-4 border-moSide pl-2">公司系統權限矩陣設定</label>
                     <div class="overflow-x-auto border border-moBorder rounded-lg shadow-sm">
                         <table class="w-full text-center text-sm border-collapse bg-white">
                             <thead class="bg-gray-100 text-moSide">
                                 <tr>
-                                    <th class="p-2 border-b border-r border-moBorder w-1/4">系統模組</th>
+                                    <th class="p-2 border-b border-r border-moBorder w-1/4 text-left pl-4">系統模組功能</th>
                                     <th class="p-2 border-b border-r border-moBorder w-1/4">可視 (查看)</th>
-                                    <th class="p-2 border-b border-r border-moBorder w-1/4 text-blue-600">操作 (報修/完工)</th>
-                                    <th class="p-2 border-b border-moBorder w-1/4 text-red-600">編輯 (新增/修改)</th>
+                                    <th class="p-2 border-b border-r border-moBorder w-1/4 text-blue-600">操作 (執行指令)</th>
+                                    <th class="p-2 border-b border-moBorder w-1/4 text-red-600">編輯 (修改/刪除)</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200">
                 `;
                 
                 sysList.forEach(sys => {
-                    let hasView = viewAuthStr.includes(sys) ? 'checked' : '';
-                    let hasOp = opAuthStr.includes(sys) ? 'checked' : '';
-                    let hasEdit = editAuthStr.includes(sys) ? 'checked' : '';
+                    let hasView = viewAuthStr.split(',').map(s=>s.trim()).includes(sys) ? 'checked' : '';
+                    let hasOp = opAuthStr.split(',').map(s=>s.trim()).includes(sys) ? 'checked' : '';
+                    let hasEdit = editAuthStr.split(',').map(s=>s.trim()).includes(sys) ? 'checked' : '';
                     
                     gridHtml += `
                                 <tr class="hover:bg-gray-50 transition-colors">
-                                    <td class="p-2 border-r border-gray-200 font-bold text-gray-700 tracking-wider text-left pl-4">${sys} <span class="text-xs text-gray-400 font-normal ml-1 hidden sm:inline">(${sysMap[sys]})</span></td>
+                                    <td class="p-2 border-r border-gray-200 font-bold text-gray-700 tracking-wider text-left pl-4">${sys} <span class="text-xs text-gray-400 font-normal ml-1">(${sysMap[sys]})</span></td>
                                     <td class="p-2 border-r border-gray-200"><input type="checkbox" class="auth-view w-4 h-4 text-moSide focus:ring-moSide cursor-pointer" value="${sys}" ${hasView} onchange="syncAuth(this, 'view')"></td>
                                     <td class="p-2 border-r border-gray-200"><input type="checkbox" class="auth-op w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer" value="${sys}" ${hasOp} onchange="syncAuth(this, 'op')"></td>
                                     <td class="p-2"><input type="checkbox" class="auth-edit w-4 h-4 text-red-600 focus:ring-red-500 cursor-pointer" value="${sys}" ${hasEdit} onchange="syncAuth(this, 'edit')"></td>
@@ -1297,54 +1299,50 @@
                     `;
                 });
                 
-                gridHtml += `</tbody></table></div><p class="text-xs text-gray-400 mt-2">💡 提示：勾選「編輯」會自動賦予「操作」與「可視」權限；取消「可視」會自動撤銷後方權限。</p></div>`;
+                gridHtml += `</tbody></table></div><p class="text-xs text-gray-400 mt-2">💡 提示：勾選「編輯」會連帶自動勾選「操作」與「可視」；取消「可視」則後方勾選一併清除。</p></div>`;
                 formGrid.innerHTML += gridHtml;
             }
 
             document.getElementById('formModal').classList.remove('hidden');
         }
 
-        // 自動相容打勾邏輯 (編輯 -> 操作 -> 可視)
+        // ================= 宮格往下相容自動連帶打勾邏輯 =================
         function syncAuth(el, type) {
             const tr = el.closest('tr');
             const viewCb = tr.querySelector('.auth-view');
             const opCb = tr.querySelector('.auth-op');
             const editCb = tr.querySelector('.auth-edit');
             
-            // 勾選編輯：操作和可視自動打勾
             if(type === 'edit' && el.checked) {
                 opCb.checked = true; viewCb.checked = true;
             }
-            // 勾選操作：可視自動打勾
             if(type === 'op' && el.checked) {
                 viewCb.checked = true;
             }
-            // 取消操作：編輯不能保留
             if(type === 'op' && !el.checked) {
                 editCb.checked = false;
             }
-            // 取消可視：操作和編輯都不能保留
             if(type === 'view' && !el.checked) {
                 opCb.checked = false; editCb.checked = false;
             }
         }
 
+        // ================= 彙整宮格權限並儲存送出 =================
         function submitForm(btn) {
             if(currentSysName === 'ERP' && !document.getElementById('input_供應商').value && editingRowIndex === -1) return alert('請選擇供應商以產生專屬料號！');
             
             let rowDataObj = {};
             
             currentHeaders.forEach(h => { 
-                // 將宮格權限跳過，等一下統一彙整
                 if (currentSheet === '權限管理' && (h === '可視系統' || h === '可操作系統' || h === '可編輯系統')) {
-                    // skip
+                    // 權限字串等下統一由下方宮格狀態搜集
                 } else {
                     const el = document.getElementById(`input_${h}`); 
                     rowDataObj[h] = el ? el.value : ''; 
                 }
             });
 
-            // 統一彙整宮格權限矩陣的打勾狀態
+            // 搜集宮格內所有被打勾的代碼，轉回逗號隔開的字串寫入試算表
             if (currentSheet === '權限管理') {
                 let vArr = [], oArr = [], eArr = [];
                 document.querySelectorAll('.auth-view:checked').forEach(cb => vArr.push(cb.value));
