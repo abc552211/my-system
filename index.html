@@ -985,24 +985,50 @@
             document.getElementById('matAddonQty').value = '';
             addMatRow(); document.getElementById('matModal').classList.remove('hidden');
         }
+        // ================= 扣料檢查：新增物料列 (升級模糊搜尋與移除功能) =================
         function addMatRow() {
-            let opts = `<option value="" data-price="0">請選擇物料...</option>`;
-            if(currentDropdowns['物料編號']) currentDropdowns['物料編號'].forEach(m => opts += `<option value="${m.id}" data-price="${m.price}">${m.name}</option>`);
-            const div = document.createElement('div'); div.className = 'flex gap-2 mat-row';
-            div.innerHTML = `<select class="mat-sel flex-1 p-2 border rounded focus:ring-1 focus:ring-moSide" onchange="calcMatCost()">${opts}</select><input type="number" class="mat-qty w-24 p-2 border rounded focus:ring-1 focus:ring-moSide" placeholder="數量" onkeyup="calcMatCost()" onchange="calcMatCost()">`;
+            let rowCount = document.querySelectorAll('.mat-row').length;
+            let listId = 'dl_mat_' + Date.now() + '_' + rowCount; // 產生唯一ID避免清單衝突
+            
+            let opts = '';
+            if(currentDropdowns['物料編號']) {
+                currentDropdowns['物料編號'].forEach(m => {
+                    opts += `<option value="${m.name}" data-price="${m.price}"></option>`;
+                });
+            }
+            
+            const div = document.createElement('div'); 
+            div.className = 'flex gap-2 mat-row items-center';
+            div.innerHTML = `
+                <div class="flex-1 relative">
+                    <input list="${listId}" class="mat-sel-input w-full p-2 border rounded focus:ring-1 focus:ring-moSide text-sm" placeholder="請輸入料號或品名關鍵字..." oninput="calcMatCost()" onchange="calcMatCost()">
+                    <datalist id="${listId}">${opts}</datalist>
+                </div>
+                <input type="number" class="mat-qty w-24 p-2 border rounded focus:ring-1 focus:ring-moSide text-sm" placeholder="數量" onkeyup="calcMatCost()" onchange="calcMatCost()" min="0">
+                <button onclick="this.closest('.mat-row').remove(); calcMatCost();" class="text-red-400 font-bold px-2 hover:text-red-600 transition-colors text-lg" title="移除此列">&times;</button>
+            `;
             document.getElementById('matList').appendChild(div);
         }
+
+        // ================= 扣料檢查：即時成本精算 (支援模糊搜尋格式) =================
         function calcMatCost() {
             let total = 0;
             document.querySelectorAll('.mat-row').forEach(row => {
-                const sel = row.querySelector('.mat-sel'); const qtyInput = row.querySelector('.mat-qty');
-                if (sel && qtyInput && sel.value && qtyInput.value) {
-                    const price = parseFloat(sel.options[sel.selectedIndex].getAttribute('data-price')) || 0;
-                    const qty = parseFloat(qtyInput.value) || 0; total += (price * qty);
+                const input = row.querySelector('.mat-sel-input'); 
+                const qtyInput = row.querySelector('.mat-qty');
+                if (input && qtyInput && input.value && qtyInput.value) {
+                    const datalist = row.querySelector('datalist');
+                    // 根據輸入的字串去 datalist 反查預估單價
+                    const option = Array.from(datalist.options).find(opt => opt.value === input.value);
+                    const price = option ? (parseFloat(option.getAttribute('data-price')) || 0) : 0;
+                    const qty = parseFloat(qtyInput.value) || 0; 
+                    total += (price * qty);
                 }
             });
             document.getElementById('matTotalCost').innerText = total.toLocaleString();
         }
+
+        // ================= 扣料檢查：送出與庫存檢核 =================
         function submitMaterialCheck(btn) {
             const orderId = document.getElementById('matOrderId').innerText;
             const actionType = document.getElementById('matActionType').value;
@@ -1010,9 +1036,16 @@
             const op = document.getElementById('userNameDisplay').innerText;
             if(actionType === 'addon' && !addonQty) return alert("請輸入追加數量！");
 
-            const sels = document.querySelectorAll('.mat-sel'); const qtys = document.querySelectorAll('.mat-qty');
+            const inputs = document.querySelectorAll('.mat-sel-input'); 
+            const qtys = document.querySelectorAll('.mat-qty');
             let matArr = [];
-            for(let i=0; i<sels.length; i++) { if(sels[i].value && qtys[i].value) matArr.push({id: sels[i].value, qty: qtys[i].value}); }
+            for(let i=0; i<inputs.length; i++) { 
+                if(inputs[i].value && qtys[i].value) { 
+                    // 系統會自動從 "V001K001 - A4白紙" 中切出精確的物料 ID "V001K001"
+                    let matId = inputs[i].value.split(' ')[0]; 
+                    matArr.push({id: matId, qty: qtys[i].value}); 
+                } 
+            }
             if(matArr.length === 0) return alert("請至少輸入一項物料與數量");
             
             btn.innerHTML = '<span class="btn-spinner"></span>檢查中'; btn.disabled = true;
