@@ -7,6 +7,50 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
+        // --- [新增] 自動將 google.script.run 轉換為 Fetch API 請求 ---
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzy4L1zU7NIum18Eul8xziGMWQlVyXjlfMeZFGMMAzqNIYtnkFb49afdUyfziXIY6fD/exec";
+
+        window.google = {
+            script: {
+                run: {
+                    withSuccessHandler: function(cb) { return createGasProxy(cb, null); },
+                    withFailureHandler: function(cb) { return createGasProxy(null, cb); }
+                }
+            }
+        };
+
+        function createGasProxy(successCb, failureCb) {
+            let proxyObj = {
+                withSuccessHandler: function(cb) { successCb = cb; return this; },
+                withFailureHandler: function(cb) { failureCb = cb; return this; }
+            };
+            return new Proxy(proxyObj, {
+                get: function(target, prop) {
+                    if (prop in target) return target[prop];
+                    if (typeof prop === 'symbol' || prop === 'then') return undefined;
+                    return function(...args) {
+                        fetch(GAS_URL, {
+                            method: 'POST',
+                            body: JSON.stringify({ func: prop, args: args })
+                        })
+                        .then(res => res.json())
+                        .then(raw => {
+                            if (raw._isGasSuccess) { 
+                                if (successCb) successCb(raw.data); 
+                            } else { 
+                                if (failureCb) failureCb(raw.error); 
+                                else console.error("GAS 後端錯誤:", raw.error); 
+                            }
+                        })
+                        .catch(err => {
+                            if (failureCb) failureCb(err); 
+                            else console.error("網路連線錯誤:", err);
+                        });
+                    };
+                }
+            });
+        }
+        // -----------------------------------------------------------
         tailwind.config = {
             theme: {
                 extend: {
