@@ -584,12 +584,16 @@
                             } 
                             else if (currentSysName === 'MES') {
                                 const status = row['工單狀態']; const mac = row['作業機台']; const woId = row['工單編號']; const oId = row['關聯訂單'];
-                                if (status === '生產中') {
-                                    actionHtml += `<button onclick="openRepairModal('${mac}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 shadow-sm">機台報修</button>`;
-                                    actionHtml += `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="bg-orange-500 text-white px-2 py-1 rounded text-xs hover:bg-orange-600 shadow-sm">停工</button>`;
-                                    actionHtml += `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 shadow-sm">完工</button>`;
-                                } else if (status === '待修中') {
-                                    actionHtml += `<span class="text-red-500 font-bold text-xs py-1 px-2 border border-red-200 rounded bg-red-50">機台搶修中</span>`;
+                                
+                                // 【權限修正】只有編輯者才顯示機台操作按鈕
+                                if (hasEditAuth) {
+                                    if (status === '生產中') {
+                                        actionHtml += `<button onclick="openRepairModal('${mac}')" class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 shadow-sm">機台報修</button>`;
+                                        actionHtml += `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="bg-orange-500 text-white px-2 py-1 rounded text-xs hover:bg-orange-600 shadow-sm">停工</button>`;
+                                        actionHtml += `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 shadow-sm">完工</button>`;
+                                    } else if (status === '待修中') {
+                                        actionHtml += `<span class="text-red-500 font-bold text-xs py-1 px-2 border border-red-200 rounded bg-red-50">機台搶修中</span>`;
+                                    }
                                 }
                             }
                             else if (currentSysName === 'EQS') {
@@ -605,8 +609,13 @@
                                 actionHtml += `<button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名與規格'])}', '${row['供應商']||''}')" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600 shadow-sm">補貨申請</button>`;
                             }
                             
+                           // 所有人都可以看到查看展開按鈕 (移出 hasEditAuth 判斷外)
                             if (detailsHTML !== '') actionHtml += `<button id="btn_detail_${index}" onclick="toggleDetails('detail_${index}')" class="bg-gray-100 border border-gray-300 text-gray-600 px-2 py-1 rounded text-xs hover:bg-gray-200 transition-colors">查看 ▼</button>`;
-                            if (currentSysName !== 'EQS') actionHtml += `<button onclick="openModal(${index})" class="border border-moSide text-moSide px-2 py-1 rounded text-xs hover:bg-gray-100">編輯</button>`;
+                            
+                            // 編輯按鈕維持在 hasEditAuth 判斷內
+                            if (hasEditAuth && currentSysName !== 'EQS') {
+                                actionHtml += `<button onclick="openModal(${index})" class="border border-moSide text-moSide px-2 py-1 rounded text-xs hover:bg-gray-100">編輯</button>`;
+                            }
                             
                             actionHtml += `</div>`;
                             tableHTML += `<td class="p-3 text-center">${actionHtml}</td>`;
