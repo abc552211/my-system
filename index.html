@@ -427,12 +427,15 @@
             else document.getElementById('addBtn').classList.toggle('hidden', !userEditAuth.includes(sysName));
             if (window.innerWidth < 768) document.querySelector('.sidebar-bg').classList.add('hidden');
             
+            // 智慧快取攔截點
             if (!forceRefresh && systemCache[sheetName]) {
                 const res = systemCache[sheetName];
                 document.getElementById('loadingIndicator').classList.add('hidden'); document.getElementById('loadingIndicator').classList.remove('flex');
                 currentHeaders = res.headers || []; currentDropdowns = res.dropdowns || {};
                 currentHandovers = res.handovers || []; currentRestocks = res.restockLogs || []; currentReplenish = res.replenishLogs || [];
                 currentEqsLogs = res.eqsLogs || []; currentAllWos = res.allWos || []; currentDeductLogs = res.deductLogs || [];
+                
+                // 【核心修正】精確傳入操作與編輯兩大獨立布林值判定
                 renderTable(res.data || [], userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName));
                 return;
             }
@@ -449,24 +452,29 @@
                     currentHeaders = res.headers || []; currentDropdowns = res.dropdowns || {};
                     currentHandovers = res.handovers || []; currentRestocks = res.restockLogs || []; currentReplenish = res.replenishLogs || [];
                     currentEqsLogs = res.eqsLogs || []; currentAllWos = res.allWos || []; currentDeductLogs = res.deductLogs || [];
-                    renderTable(res.data || [], userEditAuth.includes(sysName));
+                    
+                    // 【核心修正】異步網絡讀取成功後，同樣精確傳入操作與編輯布林值
+                    renderTable(res.data || [], userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName));
                 }).withFailureHandler(err => {
                     alert('讀取失敗：'+err); document.getElementById('loadingIndicator').classList.add('hidden'); document.getElementById('loadingIndicator').classList.remove('flex');
                 }).getSheetData(sheetName);
             }
         }
 
-        // 修正：接收 hasOpAuth 與 hasEditAuth 兩個獨立參數
+        // 修正：完全統一使用 displayHeaders 進行雙軌渲染
         function renderTable(data, hasOpAuth, hasEditAuth) {
             const container = document.getElementById('tableContainer');
             currentTableData = data || [];
             let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead class="bg-gray-100 text-moSide border-b border-gray-300"><tr>`;
             
             if (currentHeaders.length > 0) {
-                // 判斷：如果是 SYS 權限管理，強制不顯示這三個欄位
+                // 判斷：如果是 SYS 權限管理，強制不顯示這三個權限欄位
                 let displayHeaders = currentSysName === 'SYS' ? currentHeaders.filter(h => h !== '可視系統' && h !== '可操作系統' && h !== '可編輯系統') : currentHeaders;
 
+                // 1. 渲染標頭
                 displayHeaders.forEach(h => tableHTML += `<th class="p-3 font-semibold text-sm tracking-wider">${h}</th>`);
+                tableHTML += `<th class="p-3 font-semibold text-sm text-center tracking-wider">操作</th>`;
+                tableHTML += `</tr></thead><tbody class="divide-y text-sm">`;
 
                 if (currentTableData.length === 0) {
                     tableHTML += `<tr><td colspan="15" class="p-10 text-center text-gray-400 tracking-wider">目前尚無資料。</td></tr>`;
@@ -477,13 +485,14 @@
                         tableHTML += `<tr class="${bgClass} hover:bg-gray-200 transition-colors">`;
                         let detailsHTML = '';
                         
+                        // 【核心修正】這裡必須改成 displayHeaders，資料與標頭才能完全對齊
                         displayHeaders.forEach(key => {
                             let val = row[key] || '';
                             if(key === '急件' && val === '是') {
                                 val = `<span class="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold animate-pulse shadow-sm">急件</span>`;
                             }
                             else if(key.includes('狀態')) {
-                                let badgeClass = 'status-gray'; let pulseClass = ''; 
+                                let badgeClass = 'status-gray'; let pulseClass = '';  
                                 if(val === '原料不足' || val === '報修中' || val === '待修中' || val === '掛修') badgeClass = 'status-red';
                                 else if(val === '待排程') badgeClass = 'status-green';
                                 else if(val === '備料中') badgeClass = 'status-yellow';
@@ -557,7 +566,6 @@
                             let reps = currentReplenish.filter(l => l.matId === row['物料編號']);
                             if(reps.length > 0) {
                                 let rRows = reps.map(l => {
-                                    // 修正：進貨功能由 操作權限 (hasOpAuth) 控管
                                     let restockBtn = (l.status !== '已結案' && hasOpAuth) ? `<button onclick="openRestockFromRepl('${l.repId}', '${row['物料編號']}', '${encodeURIComponent(row['品名與規格'])}', '${l.supplier}', ${l.reqQty - l.inQty})" class="bg-yellow-500 text-white text-xs px-2 py-0.5 rounded shadow hover:bg-yellow-600">進貨</button>` : `<span class="text-gray-400">${l.status === '已結案'?'已結案':'無權限'}</span>`;
                                     let rHist = currentRestocks.filter(rl => rl.repId === l.repId); let vShipIds = rHist.map(rl => rl.vendorShipId).filter(v=>v).join(', '); let lastInTime = rHist.length > 0 ? rHist[rHist.length - 1].time : '-';
                                     return `<tr><td class="px-2 py-1 font-bold">${l.repId}</td><td class="px-2 py-1">${l.time}</td><td class="px-2 py-1">${l.reqQty}</td><td class="px-2 py-1 text-green-600">${l.inQty}</td><td class="px-2 py-1">${l.supplier}</td><td class="px-2 py-1 text-blue-600">${vShipIds}</td><td class="px-2 py-1 text-gray-500">${lastInTime}</td><td class="px-2 py-1 text-center">${restockBtn}</td></tr>`;
@@ -568,8 +576,6 @@
 
                         let actionHtml = `<div class="flex justify-center gap-1">`;
                         
-                        // 【權限分軌判定區】
-                        // A. 生產現場功能：由「可操作系統 (hasOpAuth)」控管
                         if (hasOpAuth) {
                             if (currentSysName === 'OMS') {
                                 const status = row['訂單狀態']; const oId = row['訂單編號'];
@@ -606,12 +612,10 @@
                             }
                         }
                         
-                        // B. 查看明細功能：只要能進此系統（有可視權限）就永遠開放
                         if (detailsHTML !== '') {
                             actionHtml += `<button id="btn_detail_${index}" onclick="toggleDetails('detail_${index}')" class="bg-gray-100 border border-gray-300 text-gray-600 px-2 py-1 rounded text-xs hover:bg-gray-200 transition-colors">查看 ▼</button>`;
                         }
                         
-                        // C. 核心資料變更功能：嚴格由「可編輯系統 (hasEditAuth)」控管
                         if (hasEditAuth && currentSysName !== 'EQS') {
                             actionHtml += `<button onclick="openModal(${index})" class="border border-moSide text-moSide px-2 py-1 rounded text-xs hover:bg-gray-100">編輯</button>`;
                         }
@@ -621,7 +625,8 @@
                         tableHTML += `</tr>`;
 
                         if (detailsHTML !== '') {
-                            const colSpan = currentHeaders.length + 1;
+                            // 【核心修正】這裡的跨欄總數也要改成 displayHeaders.length + 1
+                            const colSpan = displayHeaders.length + 1;
                             tableHTML += `<tr id="detail_${index}" class="hidden bg-gray-50"><td colspan="${colSpan}" class="p-5 text-sm border-l-4 border-moSide shadow-inner">${detailsHTML}</td></tr>`;
                         }
                     });
