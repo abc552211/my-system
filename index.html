@@ -335,8 +335,11 @@
             document.getElementById('userNameDisplay').innerText = userName;
             userViewAuth = viewAuth; userEditAuth = editAuth;
             
-            const allSys = ['EIP', 'CRM', 'SUP', 'ERP', 'OMS', 'MES', 'RPT', 'EQS', 'EQM', 'SYS'];
-            const sysMap = { 'EIP':'內部公告',  'OMS':'訂單管理', 'MES':'生產工單', 'ERP':'物料庫存','CRM':'客戶資料','SUP':'供應商資料', 'EQS':'設備狀態', 'EQM':'設備選單維護', 'RPT':'報表','SYS':'權限管理' };
+            // 您可以隨時調整陣列內項目的先後順序，左側選單會跟著改變
+            const allSys = ['EIP', 'OMS', 'MES', 'ERP', 'CRM', 'SUP', 'EQS', 'EQM', 'RPT', 'SYS'];
+            
+            // 加上 RPT 報表中心的中文映射
+            const sysMap = { 'EIP':'內部公告', 'CRM':'客戶資料', 'SUP':'供應商資料', 'ERP':'物料庫存', 'OMS':'訂單管理', 'MES':'生產工單', 'EQS':'設備狀態', 'EQM':'設備選單維護', 'RPT':'報表中心', 'SYS':'權限管理' };
             
             let firstSys = null;
             let navHtml = '';
@@ -1375,6 +1378,7 @@
             btn.innerHTML = isHidden ? '🙈 隱藏金額' : '👁️ 顯示金額';
         }
         
+      // ================= 出貨單與條碼產生系統 (一式兩份版) =================
         function printDeliveryNote(btn, orderId) {
             btn.innerHTML = '<span class="btn-spinner"></span>讀取中'; btn.disabled = true;
             
@@ -1382,79 +1386,95 @@
             
             google.script.run.withSuccessHandler(res => {
                 let customers = res.data || [];
+                // 修正：確實比對 C00000000
                 let ourInfo = customers.find(c => c['客戶代號'] === 'C00000000') || {};
                 let custInfo = customers.find(c => c['客戶名稱'] === orderRow['客戶名稱']) || {};
                 
                 let canvas = document.createElement('canvas');
-                JsBarcode(canvas, orderId, { format: "CODE39", displayValue: false, height: 45, width: 1.5, margin: 0 });
+                JsBarcode(canvas, orderId, { format: "CODE39", displayValue: false, height: 35, width: 1.5, margin: 0 });
                 let barcodeBase64 = canvas.toDataURL('image/png');
                 
-                let isUrgentHtml = orderRow['急件'] === '是' ? `<div class="absolute top-4 right-4 border-4 border-red-600 text-red-600 font-bold text-3xl px-6 py-2 transform rotate-12 opacity-80">急 件</div>` : '';
+                let isUrgentHtml = orderRow['急件'] === '是' ? `<div class="absolute top-2 right-2 border-2 border-red-600 text-red-600 font-bold text-xl px-4 py-1 transform rotate-12 opacity-80">急 件</div>` : '';
                 let qty = orderRow['數量'] || orderRow['訂單數量'] || '';
+                
+                // 修正：暴力比對各種可能的日期欄位名稱，並確保只取 YYYY-MM-DD
+                let rawDate = orderRow['訂單日期'] || orderRow['建單日期'] || orderRow['日期'] || orderRow['建立日期'] || '如系統紀錄';
+                let orderDate = (rawDate && rawDate.includes('T')) ? rawDate.split('T')[0] : rawDate;
 
-                let html = `
-                <div class="relative p-6 text-gray-800 font-sans bg-white">
+                // 建立單份表單的渲染函數
+                const buildNote = (typeLabel) => `
+                <div class="relative pb-4 mb-4 border-b-2 border-dashed border-gray-400">
                     ${isUrgentHtml}
-                    <div class="text-center mb-8 border-b-2 border-gray-800 pb-4 mt-4">
-                        <h1 class="text-3xl font-bold tracking-widest">${ourInfo['客戶名稱'] || '仕罡印刷事業有限公司'}</h1>
-                        <p class="text-xl tracking-widest mt-2 font-bold">出 貨 單</p>
+                    <div class="absolute top-0 left-0 border border-gray-800 px-2 py-1 text-xs font-bold bg-gray-200 tracking-widest">${typeLabel}</div>
+                    
+                    <div class="text-center mb-4 border-b-2 border-gray-800 pb-2 mt-2">
+                        <h1 class="text-2xl font-bold tracking-widest">${ourInfo['客戶名稱'] || ourInfo['公司名稱'] || '仕罡印刷'}</h1>
+                        <p class="text-lg tracking-widest mt-1 font-bold">出 貨 單</p>
                     </div>
                     
-                    <div class="flex justify-between items-start mb-6">
-                        <div class="w-1/2 text-sm leading-relaxed">
-                            <p class="mb-1 text-xs text-gray-500">【出貨方】</p>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-1/2 text-xs leading-relaxed">
+                            <p class="mb-1 text-[10px] text-gray-500">【出貨方】</p>
                             <p>統一編號：${ourInfo['統一編號'] || '未建檔'}</p>
                             <p>聯絡電話：${ourInfo['聯絡電話'] || '未建檔'}</p>
                             <p>公司地址：${ourInfo['聯絡地址'] || '未建檔'}</p>
                         </div>
                         <div class="w-1/2 text-right">
-                            <img src="${barcodeBase64}" class="inline-block mb-2 h-10">
-                            <p class="text-sm tracking-wider">出貨單號：<strong>${orderId}</strong></p>
-                            <p class="text-sm">訂購日期：${orderRow['建單日期'] || orderRow['訂單日期'] || '如系統紀錄'}</p>
-                            <p class="text-sm text-gray-500">列印日期：${new Date().toISOString().split('T')[0]}</p>
+                            <img src="${barcodeBase64}" class="inline-block mb-1 h-8">
+                            <p class="text-xs tracking-wider">出貨單號：<strong>${orderId}</strong></p>
+                            <p class="text-xs">訂購日期：${orderDate}</p>
+                            <p class="text-[10px] text-gray-500">列印日期：${new Date().toISOString().split('T')[0]}</p>
                         </div>
                     </div>
 
-                    <div class="border border-gray-800 p-4 mb-8 bg-gray-50 text-sm leading-relaxed rounded-sm">
-                        <p class="mb-1 text-xs text-gray-500">【收貨方】</p>
-                        <p class="text-lg">客戶名稱：<strong>${custInfo['客戶名稱'] || orderRow['客戶名稱']}</strong></p>
+                    <div class="border border-gray-800 p-2 mb-4 bg-gray-50 text-xs leading-relaxed rounded-sm">
+                        <p class="mb-1 text-[10px] text-gray-500">【收貨方】</p>
+                        <p class="text-sm">客戶名稱：<strong>${custInfo['客戶名稱'] || orderRow['客戶名稱']}</strong></p>
                         <p>統一編號：${custInfo['統一編號'] || ''}</p>
                         <p>聯絡窗口：${custInfo['聯絡人'] || '負責人'} / ${custInfo['聯絡電話'] || ''}</p>
                         <p>送貨地址：${custInfo['聯絡地址'] || ''}</p>
                     </div>
 
-                    <table class="w-full text-left border-collapse border-2 border-gray-800 mb-16">
+                    <table class="w-full text-left border-collapse border-2 border-gray-800 mb-6 text-xs">
                         <thead class="bg-gray-200">
                             <tr>
-                                <th class="border border-gray-800 p-3 w-16 text-center font-bold">項次</th>
-                                <th class="border border-gray-800 p-3 font-bold">產品名稱與規格</th>
-                                <th class="border border-gray-800 p-3 w-32 text-center font-bold">數量</th>
-                                <th class="border border-gray-800 p-3 w-40 font-bold">備註</th>
+                                <th class="border border-gray-800 p-2 w-12 text-center font-bold">項次</th>
+                                <th class="border border-gray-800 p-2 font-bold">產品名稱與規格</th>
+                                <th class="border border-gray-800 p-2 w-20 text-center font-bold">數量</th>
+                                <th class="border border-gray-800 p-2 w-24 font-bold">備註</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="border border-gray-800 p-4 text-center">1</td>
-                                <td class="border border-gray-800 p-4 font-bold text-xl text-moText">${orderRow['產品名稱']}</td>
-                                <td class="border border-gray-800 p-4 text-center font-bold text-2xl">${qty}</td>
-                                <td class="border border-gray-800 p-4 text-gray-400 text-xs">依實物為準</td>
+                                <td class="border border-gray-800 p-3 text-center">1</td>
+                                <td class="border border-gray-800 p-3 font-bold text-sm text-moText">${orderRow['產品名稱']}</td>
+                                <td class="border border-gray-800 p-3 text-center font-bold text-lg">${qty}</td>
+                                <td class="border border-gray-800 p-3 text-gray-400 text-[10px]">依實物為準</td>
                             </tr>
                         </tbody>
                     </table>
 
-                    <div class="flex justify-between mt-24 px-10 text-sm">
-                        <div class="w-56 text-center border-t-2 border-gray-800 pt-2"><p class="font-bold tracking-widest">出貨部門簽章</p></div>
-                        <div class="w-56 text-center border-t-2 border-gray-800 pt-2"><p class="font-bold tracking-widest">客戶簽收確認</p></div>
+                    <div class="flex justify-between mt-6 px-8 text-xs">
+                        <div class="w-40 text-center border-t border-gray-800 pt-1"><p class="font-bold tracking-widest">出貨部門簽章</p></div>
+                        <div class="w-40 text-center border-t border-gray-800 pt-1"><p class="font-bold tracking-widest">客戶簽收確認</p></div>
                     </div>
                 </div>
                 `;
+
+                // 將兩份 HTML 疊加輸出 (一式兩份)
+                let finalHtml = `
+                <div class="p-4 bg-white text-gray-800 font-sans">
+                    ${buildNote('【 客 戶 收 執 聯 】')}
+                    ${buildNote('【 公 司 存 根 聯 】')}
+                </div>
+                `;
                 
-                execHTML2PDF(html, `出貨單_${orderId}.pdf`);
+                execHTML2PDF(finalHtml, `出貨單_${orderId}.pdf`);
                 btn.innerHTML = '📄 出貨單'; btn.disabled = false;
             }).withFailureHandler(err => {
                 alert("讀取客戶資料失敗：" + err);
                 btn.innerHTML = '📄 出貨單'; btn.disabled = false;
-            }).getSheetData('客戶名單');
+            }).getSheetData('客戶資料'); // 修正：從 客戶名單 -> 改為正確的 客戶資料
         }
         
     </script>
