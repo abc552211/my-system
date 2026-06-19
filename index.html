@@ -351,10 +351,10 @@
             document.getElementById('app').classList.remove('hidden');
             document.getElementById('userNameDisplay').innerText = userName;
             
-            // 綁定全域變數
-            userViewAuth = viewAuth; 
-            userOpAuth = opAuth; 
-            userEditAuth = editAuth;
+            // 【修復核心 1】實作權限向下繼承 (最大權限：編輯 > 操作 > 可視)
+            userEditAuth = editAuth || ''; 
+            userOpAuth = (opAuth || '') + ',' + userEditAuth;   // 擁有編輯權限，就自動擁有操作權限
+            userViewAuth = (viewAuth || '') + ',' + userOpAuth; // 擁有操作權限，就自動擁有可視權限
             
             const allSys = ['EIP', 'OMS', 'MES', 'ERP', 'CRM', 'SUP', 'EQS', 'EQM', 'RPT', 'SYS'];
             const sysMap = { 'EIP':'內部公告', 'CRM':'客戶資料', 'SUP':'供應商資料', 'ERP':'物料庫存', 'OMS':'訂單管理', 'MES':'生產工單', 'EQS':'設備狀態', 'EQM':'設備選單維護', 'RPT':'報表中心', 'SYS':'權限管理' };
@@ -362,8 +362,8 @@
             let firstSys = null;
             let navHtml = '';
             allSys.forEach(sys => {
-                // 由「可視系統(viewAuth)」決定左側選單要不要顯示
-                if (viewAuth.includes(sys)) {
+                // 【修復核心 2】由繼承後的「全域可視系統 (userViewAuth)」決定左側選單要不要顯示
+                if (userViewAuth.includes(sys)) {
                     navHtml += `<a href="#" id="menu_${sys}" onclick="loadSystem('${sys}', '${sysMap[sys]||''}')" class="px-6 py-3 nav-btn flex items-center gap-3"><span class="tracking-widest">${sys} ${sysMap[sys]||''}</span></a>`;
                     if(!firstSys && sys !== 'RPT') firstSys = sys;
                 }
@@ -371,7 +371,8 @@
             document.getElementById('navMenu').innerHTML = navHtml;
             if(firstSys) loadSystem(firstSys, sysMap[firstSys]);
 
-            prefetchQueue = allSys.filter(s => viewAuth.includes(s) && s !== 'RPT' && s !== firstSys).map(s => sysMap[s]);
+            // 【修復核心 3】預先載入也必須使用 userViewAuth
+            prefetchQueue = allSys.filter(s => userViewAuth.includes(s) && s !== 'RPT' && s !== firstSys).map(s => sysMap[s]);
             if(!isPrefetching) processPrefetch();
         }
 
@@ -462,9 +463,10 @@
             let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead class="bg-gray-100 text-moSide border-b border-gray-300"><tr>`;
             
             if (currentHeaders.length > 0) {
-                currentHeaders.forEach(h => tableHTML += `<th class="p-3 font-semibold text-sm tracking-wider">${h}</th>`);
-                tableHTML += `<th class="p-3 font-semibold text-sm text-center tracking-wider">操作</th>`;
-                tableHTML += `</tr></thead><tbody class="divide-y text-sm">`;
+                // 判斷：如果是 SYS 權限管理，強制不顯示這三個欄位
+                let displayHeaders = currentSysName === 'SYS' ? currentHeaders.filter(h => h !== '可視系統' && h !== '可操作系統' && h !== '可編輯系統') : currentHeaders;
+
+                displayHeaders.forEach(h => tableHTML += `<th class="p-3 font-semibold text-sm tracking-wider">${h}</th>`);
 
                 if (currentTableData.length === 0) {
                     tableHTML += `<tr><td colspan="15" class="p-10 text-center text-gray-400 tracking-wider">目前尚無資料。</td></tr>`;
@@ -475,7 +477,7 @@
                         tableHTML += `<tr class="${bgClass} hover:bg-gray-200 transition-colors">`;
                         let detailsHTML = '';
                         
-                        currentHeaders.forEach(key => {
+                        displayHeaders.forEach(key => {
                             let val = row[key] || '';
                             if(key === '急件' && val === '是') {
                                 val = `<span class="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold animate-pulse shadow-sm">急件</span>`;
@@ -1219,6 +1221,9 @@
                     let opts = `<option value="是" ${val!=='否'?'selected':''}>是 (顯示於下拉選單)</option><option value="否" ${val==='否'?'selected':''}>否 (離職/隱藏)</option>`;
                     fieldHTML += `<select id="input_${header}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">${opts}</select>`;
                 }
+                else if (header === '最近一次登入時間') {
+                    fieldHTML += `<input type="text" id="input_${header}" value="${val}" readonly class="w-full p-2 border bg-gray-100 text-gray-400 cursor-not-allowed" placeholder="登入時系統自動記錄">`;
+                }    
                 else if (header === '訂單狀態' && currentSysName === 'OMS') {
                     fieldHTML += `<input type="text" id="input_${header}" value="${val || '備料中'}" readonly class="w-full p-2 border bg-gray-100 text-gray-400 cursor-not-allowed">`;
                 }
