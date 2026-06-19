@@ -3,70 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>仕罡企業管理系統</title>
+    <title>仕罡印刷 - 企業管理系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
     <script>
-        
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        moBg: '#F4F3EF', moSide: '#7A8B8B', moSideHover: '#627373', moText: '#4A4F55',
-                        moCard: '#FFFFFF', moBorder: '#D9D4CD', moBtn: '#B8A69B', moBtnHover: '#A08E84'
+                        moBg: '#F3F4F6', // 淺灰底色
+                        moSide: '#4B5563', // 沉穩深灰 (側邊欄與主按鈕)
+                        moSideLight: '#9CA3AF', 
+                        moCard: '#FFFFFF', 
+                        moText: '#374151', // 深灰字體
+                        moBorder: '#D1D5DB'
                     }
                 }
             }
         }
     </script>
     <style>
+        body { color: #374151; }
+        .login-bg { background: linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%); }
+        .sidebar-bg { background-color: #374151; border-right: 1px solid #1F2937; }
+        .nav-btn:hover { background-color: rgba(255,255,255,0.1); transform: translateX(2px); transition: all 0.2s ease; }
+        .btn-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: btn-spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; margin-top: -2px; }
+        .btn-spinner-red { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(220,38,38,0.3); border-top-color: #DC2626; border-radius: 50%; animation: btn-spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; margin-top: -2px; }
+        @keyframes btn-spin { to { transform: rotate(360deg); } }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #D9D4CD; border-radius: 10px; }
+        ::-webkit-scrollbar-track { background: #F3F4F6; }
+        ::-webkit-scrollbar-thumb { background: #9CA3AF; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6B7280; }
         td, th { white-space: nowrap; }
-        .status-badge { padding: 2px 8px; border-radius: 12px; font-weight: bold; font-size: 0.75rem; }
+        .status-badge { padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
         .status-red { background: #FEE2E2; color: #DC2626; border: 1px solid #FCA5A5; }
         .status-green { background: #D1FAE5; color: #059669; border: 1px solid #6EE7B7; }
         .status-blue { background: #DBEAFE; color: #2563EB; border: 1px solid #93C5FD; }
         .status-gray { background: #F3F4F6; color: #4B5563; border: 1px solid #D1D5DB; }
         .status-yellow { background: #FEF3C7; color: #D97706; border: 1px solid #FCD34D; }
         button { user-select: none; }
-        .btn-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: btn-spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; margin-top: -2px; }
-        .btn-spinner-red { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(220,38,38,0.3); border-top-color: #DC2626; border-radius: 50%; animation: btn-spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; margin-top: -2px; }
-        @keyframes btn-spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-moBg text-moText font-sans h-[100dvh] overflow-hidden flex flex-col md:flex-row">
 
-    <div id="loginOverlay" class="fixed inset-0 bg-moSide z-50 flex flex-col items-center justify-center">
-        <div class="bg-moCard p-8 rounded-xl shadow-lg max-w-sm w-full text-center border border-moBorder">
-            <h1 class="text-2xl font-bold mb-6 text-moSide">仕罡企業管理系統</h1>
-            <input type="password" id="pwdInput" placeholder="輸入密碼" class="w-full p-3 mb-4 border border-moBorder rounded focus:outline-none focus:ring-1 focus:ring-moSide">
-            <button onclick="login(this)" class="w-full bg-moBtn hover:bg-moBtnHover text-white py-3 rounded transition-colors">確認登入</button>
+    <div id="loginScreen" class="fixed inset-0 login-bg flex items-center justify-center z-50">
+        <div class="bg-white p-10 rounded shadow-lg w-96 text-center border border-gray-300">
+            <h1 class="text-2xl font-bold text-gray-800 mb-1 tracking-widest">仕罡印刷</h1>
+            <p class="text-sm text-gray-500 mb-8 tracking-wide">企業管理系統</p>
+            
+            <input type="password" id="sysPwd" placeholder="請輸入通行密碼" class="w-full p-3 mb-6 border border-gray-300 rounded focus:outline-none focus:border-gray-500 text-center tracking-widest text-gray-700 placeholder-gray-400" onkeypress="if(event.key==='Enter') loginSys()">
+            
+            <button onclick="loginSys()" class="w-full bg-gray-700 hover:bg-gray-800 text-white font-bold py-3 px-4 rounded shadow transition-colors tracking-widest">系統登入</button>
+            <p id="loginError" class="text-red-500 text-xs mt-4 hidden tracking-widest">登入失敗，請檢查密碼</p>
         </div>
     </div>
 
-    <nav class="bg-moSide text-white flex-shrink-0 w-full md:w-64 flex flex-col z-10 transition-all">
-        <div class="p-4 flex justify-between items-center border-b border-moSideHover">
-            <h2 class="text-xl font-bold tracking-wider">仕罡集團</h2>
-            <button onclick="toggleMenu()" class="md:hidden"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+    <div id="app" class="flex w-full hidden">
+        
+        <div class="w-64 sidebar-bg text-gray-300 flex flex-col shadow-md z-10">
+            <div class="p-4 text-center font-bold text-xl border-b border-gray-600 tracking-wider flex flex-col items-center justify-center h-16 text-white">
+                仕罡印刷
+            </div>
+            <nav class="flex-1 overflow-y-auto py-2 space-y-1" id="navMenu"></nav>
+            <div class="p-4 border-t border-gray-600 text-xs text-center bg-gray-800 text-gray-400">
+                登入人員: <span id="userNameDisplay" class="font-bold text-white"></span>
+            </div>
         </div>
-        <div id="menuItems" class="hidden md:flex flex-col flex-1 overflow-y-auto py-2">
-            <a href="#" id="menu_EIP" onclick="loadSystem('EIP', '內部公告')" class="px-6 py-3 hover:bg-moSideHover flex items-center gap-3"><span>EIP 企業入口</span></a>
-            <a href="#" id="menu_OMS" onclick="loadSystem('OMS', '訂單管理')" class="px-6 py-3 hover:bg-moSideHover flex items-center gap-3"><span>OMS 訂單管理</span></a>
-            <a href="#" id="menu_MES" onclick="loadSystem('MES', '生產工單')" class="px-6 py-3 hover:bg-moSideHover flex items-center gap-3"><span>MES 生產工單</span></a>
-            <a href="#" id="menu_ERP" onclick="loadSystem('ERP', '物料庫存')" class="px-6 py-3 hover:bg-moSideHover flex items-center gap-3"><span>ERP 物料庫存</span></a>
-            <a href="#" id="menu_SUP" onclick="loadSystem('SUP', '供應商資料')" class="px-6 py-3 hover:bg-moSideHover flex items-center gap-3"><span>SUP 供應商管理</span></a>
-            <a href="#" id="menu_CRM" onclick="loadSystem('CRM', '客戶資料')" class="px-6 py-3 hover:bg-moSideHover flex items-center gap-3"><span>CRM 客戶資料</span></a>
-            <div class="my-2 border-t border-moSideHover opacity-50"></div>
-            <a href="#" id="menu_EQS" onclick="loadSystem('EQS', '設備狀態')" class="px-6 py-3 hover:bg-moSideHover flex items-center gap-3"><span>EQS 設備狀態</span></a>
-            <a href="#" id="menu_EQM" onclick="loadSystem('EQM', '設備選單維護')" class="px-6 py-3 hover:bg-moSideHover flex items-center gap-3"><span>EQM 設備選單維護</span></a>
-            <div class="my-2 border-t border-moSideHover opacity-50"></div>
-            <a href="#" id="menu_RPT" onclick="loadReportSystem()" class="px-6 py-3 hover:bg-moSideHover flex items-center gap-3"><span>RPT 報表中心</span></a>
-            <a href="#" id="menu_SYS" onclick="loadSystem('SYS', '權限管理')" class="px-6 py-3 hover:bg-moSideHover flex items-center gap-3"><span>SYS 權限管理</span></a>
-        </div>
-        <div class="p-4 border-t border-moSideHover hidden md:block text-xs text-center text-gray-300">登入身份: <span id="userNameDisplay"></span></div>
-    </nav>
 
     <main class="flex-1 flex flex-col h-full overflow-hidden">
         <header class="bg-moCard px-6 py-4 border-b border-moBorder shadow-sm flex flex-col md:flex-row gap-4 md:gap-0 justify-between items-center">
@@ -512,24 +516,23 @@
 
                         // === [修改區塊：OMS 與 MES 展開領料明細] ===
                         if (currentSysName === 'OMS') {
-                            let orderId = row['訂單編號'];
-                            let orderWos = currentAllWos.filter(w => w['關聯訂單'] === orderId);
-                            if(orderWos.length > 0) {
-                                let wRows = orderWos.map(w => `<tr><td class="px-2 py-1 font-bold">${w['工單編號']}</td><td class="px-2 py-1">${w['作業機台']}</td><td class="px-2 py-1">${w['員工姓名']}</td><td class="px-2 py-1">${w['完成日期']}</td><td class="px-2 py-1">${w['工單狀態']}</td><td class="px-2 py-1">${w['產出量']||'-'}</td><td class="px-2 py-1 text-red-500">${w['停工原因']||''}</td></tr>`).join('');
-                                detailsHTML += `<strong class="text-moSide">生產工單明細:</strong><table class="mt-1 w-full text-xs text-left border-collapse border border-blue-200 mb-3"><thead class="bg-blue-50"><tr><th class="px-2 py-1 border border-blue-200">工單編號</th><th class="px-2 py-1 border border-blue-200">機台</th><th class="px-2 py-1 border border-blue-200">員工</th><th class="px-2 py-1 border border-blue-200">完成日期</th><th class="px-2 py-1 border border-blue-200">狀態</th><th class="px-2 py-1 border border-blue-200">產出量</th><th class="px-2 py-1 border border-blue-200">停工原因</th></tr></thead><tbody>${wRows}</tbody></table>`;
+                                const status = row['訂單狀態']; const oId = row['訂單編號'];
+                                if (status === '備料中' || status === '原料不足') actionHtml += `<button onclick="openMatModal('${oId}', 'normal')" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600 shadow-sm">扣料檢查</button>`;
+                                else if (status === '待排程') actionHtml += `<button onclick="openWoModal('${oId}', '${encodeURIComponent(row['產品名稱']||'')}')" class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 shadow-sm">排程派工</button>`;
+                                
+                                if (status === '製作完成') actionHtml += `<button onclick="openMatModal('${oId}', 'rework')" class="bg-orange-500 text-white px-2 py-1 rounded text-xs hover:bg-orange-600 shadow-sm">重工</button>`;
+                                if (!['備料中', '原料不足', '製作完成', '已停工'].includes(status)) {
+                                    actionHtml += `<button onclick="openMatModal('${oId}', 'addon')" class="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 shadow-sm">追加</button>`;
+                                }
+                                
+                                let hasWos = currentAllWos.filter(w => w['關聯訂單'] === oId).length > 0;
+                                if(hasWos) actionHtml += `<button onclick="generateWoPDF('${oId}', '${encodeURIComponent(row['產品名稱']||'')}', '${row['客戶名稱']||''}')" class="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700 shadow-sm">列印派工單</button>`;
+                                
+                                // 【新加入邏輯】若訂單狀態為製作完成或已結案，右側加開出貨單按鈕
+                                if (status === '製作完成' || status === '已結案') {
+                                    actionHtml += `<button onclick="printDeliveryNote(this, '${oId}')" class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 shadow-sm ml-1">📄 出貨單</button>`;
+                                }
                             }
-                            
-                            let orderMats = currentDeductLogs.filter(l => l.orderId === orderId);
-                            if(orderMats.length > 0) {
-                                let matMap = {}; orderMats.forEach(m => { matMap[m.matId] = (matMap[m.matId]||0) + parseFloat(m.qty); });
-                                let mRows = Object.keys(matMap).map(mId => {
-                                    let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === mId);
-                                    let mName = matObj ? matObj.name.replace(mId+' - ', '') : '';
-                                    return `<tr><td class="px-2 py-1 font-bold text-gray-700">${mId}</td><td class="px-2 py-1 text-gray-600">${mName}</td><td class="px-2 py-1 text-red-600 font-bold">${matMap[mId]}</td></tr>`;
-                                }).join('');
-                                detailsHTML += `<strong class="text-moSide">領料使用明細:</strong><table class="mt-1 w-full text-xs text-left border-collapse border border-orange-200 mb-3"><thead class="bg-orange-50"><tr><th class="px-2 py-1 border border-orange-200">物料編號</th><th class="px-2 py-1 border border-orange-200">品名與規格</th><th class="px-2 py-1 border border-orange-200">總領用數</th></tr></thead><tbody>${mRows}</tbody></table>`;
-                            }
-                        }
 
                         if (currentSysName === 'MES') {
                             let orderId = row['關聯訂單'];
@@ -1415,6 +1418,89 @@
             
             btn.innerHTML = isHidden ? '🙈 隱藏金額' : '👁️ 顯示金額';
         }
+// ================= 出貨單與條碼產生系統 =================
+        function printDeliveryNote(btn, orderId) {
+            btn.innerHTML = '<span class="btn-spinner"></span>讀取中'; btn.disabled = true;
+            
+            let orderRow = currentTableData.find(r => r['訂單編號'] === orderId);
+            
+            google.script.run.withSuccessHandler(res => {
+                let customers = res.data || [];
+                let ourInfo = customers.find(c => c['客戶代號'] === 'C00000000') || {};
+                let custInfo = customers.find(c => c['客戶名稱'] === orderRow['客戶名稱']) || {};
+                
+                let canvas = document.createElement('canvas');
+                JsBarcode(canvas, orderId, { format: "CODE39", displayValue: false, height: 45, width: 1.5, margin: 0 });
+                let barcodeBase64 = canvas.toDataURL('image/png');
+                
+                let isUrgentHtml = orderRow['急件'] === '是' ? `<div class="absolute top-4 right-4 border-4 border-red-600 text-red-600 font-bold text-3xl px-6 py-2 transform rotate-12 opacity-80">急 件</div>` : '';
+                let qty = orderRow['數量'] || orderRow['訂單數量'] || '';
+
+                let html = `
+                <div class="relative p-6 text-gray-800 font-sans bg-white">
+                    ${isUrgentHtml}
+                    <div class="text-center mb-8 border-b-2 border-gray-800 pb-4 mt-4">
+                        <h1 class="text-3xl font-bold tracking-widest">${ourInfo['客戶名稱'] || '仕罡印刷事業有限公司'}</h1>
+                        <p class="text-xl tracking-widest mt-2 font-bold">出 貨 單</p>
+                    </div>
+                    
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="w-1/2 text-sm leading-relaxed">
+                            <p class="mb-1 text-xs text-gray-500">【出貨方】</p>
+                            <p>統一編號：${ourInfo['統一編號'] || '未建檔'}</p>
+                            <p>聯絡電話：${ourInfo['聯絡電話'] || '未建檔'}</p>
+                            <p>公司地址：${ourInfo['聯絡地址'] || '未建檔'}</p>
+                        </div>
+                        <div class="w-1/2 text-right">
+                            <img src="${barcodeBase64}" class="inline-block mb-2 h-10">
+                            <p class="text-sm tracking-wider">出貨單號：<strong>${orderId}</strong></p>
+                            <p class="text-sm">訂購日期：${orderRow['建單日期'] || orderRow['訂單日期'] || '如系統紀錄'}</p>
+                            <p class="text-sm text-gray-500">列印日期：${new Date().toISOString().split('T')[0]}</p>
+                        </div>
+                    </div>
+
+                    <div class="border border-gray-800 p-4 mb-8 bg-gray-50 text-sm leading-relaxed rounded-sm">
+                        <p class="mb-1 text-xs text-gray-500">【收貨方】</p>
+                        <p class="text-lg">客戶名稱：<strong>${custInfo['客戶名稱'] || orderRow['客戶名稱']}</strong></p>
+                        <p>統一編號：${custInfo['統一編號'] || ''}</p>
+                        <p>聯絡窗口：${custInfo['聯絡人'] || '負責人'} / ${custInfo['聯絡電話'] || ''}</p>
+                        <p>送貨地址：${custInfo['聯絡地址'] || ''}</p>
+                    </div>
+
+                    <table class="w-full text-left border-collapse border-2 border-gray-800 mb-16">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="border border-gray-800 p-3 w-16 text-center font-bold">項次</th>
+                                <th class="border border-gray-800 p-3 font-bold">產品名稱與規格</th>
+                                <th class="border border-gray-800 p-3 w-32 text-center font-bold">數量</th>
+                                <th class="border border-gray-800 p-3 w-40 font-bold">備註</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="border border-gray-800 p-4 text-center">1</td>
+                                <td class="border border-gray-800 p-4 font-bold text-xl text-moText">${orderRow['產品名稱']}</td>
+                                <td class="border border-gray-800 p-4 text-center font-bold text-2xl">${qty}</td>
+                                <td class="border border-gray-800 p-4 text-gray-400 text-xs">依實物為準</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="flex justify-between mt-24 px-10 text-sm">
+                        <div class="w-56 text-center border-t-2 border-gray-800 pt-2"><p class="font-bold tracking-widest">出貨部門簽章</p></div>
+                        <div class="w-56 text-center border-t-2 border-gray-800 pt-2"><p class="font-bold tracking-widest">客戶簽收確認</p></div>
+                    </div>
+                </div>
+                `;
+                
+                execHTML2PDF(html, `出貨單_${orderId}.pdf`);
+                btn.innerHTML = '📄 出貨單'; btn.disabled = false;
+            }).withFailureHandler(err => {
+                alert("讀取客戶資料失敗：" + err);
+                btn.innerHTML = '📄 出貨單'; btn.disabled = false;
+            }).getSheetData('客戶名單');
+        }
+        
     </script>
 </body>
 </html>
