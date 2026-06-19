@@ -13,32 +13,32 @@
             theme: {
                 extend: {
                     colors: {
-                        moBg: '#F3F4F6', 
-                        moSide: '#4B5563', 
-                        moSideLight: '#9CA3AF', 
+                        moBg: '#F0F1F0',       // 莫蘭迪淺灰底
+                        moSide: '#66747A',     // 莫蘭迪深灰藍 (主色/專業感)
+                        moSideLight: '#8D9B9F', 
                         moCard: '#FFFFFF', 
-                        moText: '#374151', 
-                        moBorder: '#D1D5DB',
-                        moAccent: '#3B82F6' // 新增跳色裝飾 (藍色)
+                        moText: '#3A4449',     // 深灰字體 (易判讀對比)
+                        moBorder: '#D2D7D9',
+                        moAccent: '#81939A'    // 跳色裝飾 (莫蘭迪灰藍)
                     }
                 }
             }
         }
     </script>
     <style>
-        body { color: #374151; }
-        .login-bg { background: linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%); }
-        .sidebar-bg { background-color: #374151; border-right: 1px solid #1F2937; }
+        body { color: #3A4449; }
+        .login-bg { background: linear-gradient(135deg, #E2E6E7 0%, #C4CBCD 100%); }
+        .sidebar-bg { background-color: #525F65; border-right: 1px solid #3A4449; }
         .nav-btn:hover { background-color: rgba(255,255,255,0.1); transform: translateX(2px); transition: all 0.2s ease; }
         .btn-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: btn-spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; margin-top: -2px; }
         .btn-spinner-red { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(220,38,38,0.3); border-top-color: #DC2626; border-radius: 50%; animation: btn-spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; margin-top: -2px; }
         @keyframes btn-spin { to { transform: rotate(360deg); } }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #F3F4F6; }
-        ::-webkit-scrollbar-thumb { background: #9CA3AF; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #6B7280; }
+        ::-webkit-scrollbar-track { background: #F0F1F0; }
+        ::-webkit-scrollbar-thumb { background: #8D9B9F; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #66747A; }
         td, th { white-space: nowrap; }
-        .status-badge { padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+        .status-badge { padding: 2px 8px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; }
         .status-red { background: #FEE2E2; color: #DC2626; border: 1px solid #FCA5A5; }
         .status-green { background: #D1FAE5; color: #059669; border: 1px solid #6EE7B7; }
         .status-blue { background: #DBEAFE; color: #2563EB; border: 1px solid #93C5FD; }
@@ -50,13 +50,14 @@
 <body class="bg-moBg text-moText font-sans h-[100dvh] overflow-hidden flex flex-col md:flex-row">
 
     <div id="loginScreen" class="fixed inset-0 login-bg flex items-center justify-center z-50">
-        <div class="bg-white p-10 rounded shadow-lg w-96 text-center border border-gray-300 border-l-8 border-l-moAccent relative">
+        <!-- 登入卡片：改為 rounded-2xl (更圓潤)，陰影加深，莫蘭迪跳色 -->
+        <div class="bg-white p-10 rounded-2xl shadow-xl w-96 text-center border border-gray-200 border-l-8 border-l-moAccent relative">
             <h1 class="text-2xl font-bold text-gray-800 mb-1 tracking-widest">仕罡印刷</h1>
             <p class="text-sm text-gray-500 mb-8 tracking-wide">公司管理系統</p>
             
-            <input type="password" id="sysPwd" placeholder="請輸入通行密碼" class="w-full p-3 mb-6 border border-gray-300 rounded focus:outline-none focus:border-moAccent focus:ring-1 focus:ring-moAccent text-center tracking-widest text-gray-700 placeholder-gray-400" onkeypress="if(event.key==='Enter') loginSys()">
+            <input type="password" id="sysPwd" placeholder="請輸入通行密碼" class="w-full p-3 mb-6 border border-gray-300 rounded-lg focus:outline-none focus:border-moAccent focus:ring-1 focus:ring-moAccent text-center tracking-widest text-gray-700 placeholder-gray-400">
             
-            <button onclick="loginSys()" class="w-full bg-gray-700 hover:bg-gray-800 text-white font-bold py-3 px-4 rounded shadow transition-colors tracking-widest">系統登入</button>
+            <button onclick="loginSys()" class="w-full bg-moSide hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors tracking-widest">系統登入</button>
             <p id="loginError" class="text-red-500 text-xs mt-4 hidden tracking-widest">登入失敗，請檢查密碼</p>
         </div>
     </div>
@@ -1378,7 +1379,7 @@
             btn.innerHTML = isHidden ? '🙈 隱藏金額' : '👁️ 顯示金額';
         }
         
-      // ================= 出貨單與條碼產生系統 (一式兩份版) =================
+      // ================= 出貨單與條碼產生系統 (單份滿版) =================
         function printDeliveryNote(btn, orderId) {
             btn.innerHTML = '<span class="btn-spinner"></span>讀取中'; btn.disabled = true;
             
@@ -1386,95 +1387,85 @@
             
             google.script.run.withSuccessHandler(res => {
                 let customers = res.data || [];
-                // 修正：確實比對 C00000000
                 let ourInfo = customers.find(c => c['客戶代號'] === 'C00000000') || {};
                 let custInfo = customers.find(c => c['客戶名稱'] === orderRow['客戶名稱']) || {};
                 
                 let canvas = document.createElement('canvas');
-                JsBarcode(canvas, orderId, { format: "CODE39", displayValue: false, height: 35, width: 1.5, margin: 0 });
+                JsBarcode(canvas, orderId, { format: "CODE39", displayValue: false, height: 45, width: 1.5, margin: 0 });
                 let barcodeBase64 = canvas.toDataURL('image/png');
                 
-                let isUrgentHtml = orderRow['急件'] === '是' ? `<div class="absolute top-2 right-2 border-2 border-red-600 text-red-600 font-bold text-xl px-4 py-1 transform rotate-12 opacity-80">急 件</div>` : '';
+                let isUrgentHtml = orderRow['急件'] === '是' ? `<div class="absolute top-4 right-4 border-4 border-red-600 text-red-600 font-bold text-3xl px-6 py-2 transform rotate-12 opacity-80">急 件</div>` : '';
                 let qty = orderRow['數量'] || orderRow['訂單數量'] || '';
                 
-                // 修正：暴力比對各種可能的日期欄位名稱，並確保只取 YYYY-MM-DD
+                // 動態抓取備註，若無則顯示預設字眼
+                let remarkText = orderRow['備註'] || '依實物為準';
+                
                 let rawDate = orderRow['訂單日期'] || orderRow['建單日期'] || orderRow['日期'] || orderRow['建立日期'] || '如系統紀錄';
                 let orderDate = (rawDate && rawDate.includes('T')) ? rawDate.split('T')[0] : rawDate;
 
-                // 建立單份表單的渲染函數
-                const buildNote = (typeLabel) => `
-                <div class="relative pb-4 mb-4 border-b-2 border-dashed border-gray-400">
+                let html = `
+                <div class="relative p-8 text-gray-800 font-sans bg-white min-h-[250mm]">
                     ${isUrgentHtml}
-                    <div class="absolute top-0 left-0 border border-gray-800 px-2 py-1 text-xs font-bold bg-gray-200 tracking-widest">${typeLabel}</div>
-                    
-                    <div class="text-center mb-4 border-b-2 border-gray-800 pb-2 mt-2">
-                        <h1 class="text-2xl font-bold tracking-widest">${ourInfo['客戶名稱'] || ourInfo['公司名稱'] || '仕罡印刷'}</h1>
-                        <p class="text-lg tracking-widest mt-1 font-bold">出 貨 單</p>
+                    <div class="text-center mb-10 border-b-2 border-gray-800 pb-4 mt-4">
+                        <h1 class="text-4xl font-bold tracking-widest">${ourInfo['客戶名稱'] || ourInfo['公司名稱'] || '仕罡印刷'}</h1>
+                        <p class="text-2xl tracking-widest mt-3 font-bold">出 貨 單</p>
                     </div>
                     
-                    <div class="flex justify-between items-start mb-4">
-                        <div class="w-1/2 text-xs leading-relaxed">
-                            <p class="mb-1 text-[10px] text-gray-500">【出貨方】</p>
+                    <div class="flex justify-between items-start mb-8">
+                        <div class="w-1/2 text-base leading-relaxed">
+                            <p class="mb-1 text-sm text-gray-500 font-bold">【出貨方】</p>
                             <p>統一編號：${ourInfo['統一編號'] || '未建檔'}</p>
                             <p>聯絡電話：${ourInfo['聯絡電話'] || '未建檔'}</p>
                             <p>公司地址：${ourInfo['聯絡地址'] || '未建檔'}</p>
                         </div>
                         <div class="w-1/2 text-right">
-                            <img src="${barcodeBase64}" class="inline-block mb-1 h-8">
-                            <p class="text-xs tracking-wider">出貨單號：<strong>${orderId}</strong></p>
-                            <p class="text-xs">訂購日期：${orderDate}</p>
-                            <p class="text-[10px] text-gray-500">列印日期：${new Date().toISOString().split('T')[0]}</p>
+                            <img src="${barcodeBase64}" class="inline-block mb-3 h-12">
+                            <p class="text-base tracking-wider">出貨單號：<strong>${orderId}</strong></p>
+                            <p class="text-base mt-1">訂購日期：${orderDate}</p>
+                            <p class="text-sm text-gray-500 mt-1">列印日期：${new Date().toISOString().split('T')[0]}</p>
                         </div>
                     </div>
 
-                    <div class="border border-gray-800 p-2 mb-4 bg-gray-50 text-xs leading-relaxed rounded-sm">
-                        <p class="mb-1 text-[10px] text-gray-500">【收貨方】</p>
-                        <p class="text-sm">客戶名稱：<strong>${custInfo['客戶名稱'] || orderRow['客戶名稱']}</strong></p>
+                    <div class="border border-gray-800 p-5 mb-10 bg-gray-50 text-base leading-relaxed rounded-md">
+                        <p class="mb-2 text-sm text-gray-500 font-bold">【收貨方】</p>
+                        <p class="text-xl mb-1">客戶名稱：<strong>${custInfo['客戶名稱'] || orderRow['客戶名稱']}</strong></p>
                         <p>統一編號：${custInfo['統一編號'] || ''}</p>
                         <p>聯絡窗口：${custInfo['聯絡人'] || '負責人'} / ${custInfo['聯絡電話'] || ''}</p>
                         <p>送貨地址：${custInfo['聯絡地址'] || ''}</p>
                     </div>
 
-                    <table class="w-full text-left border-collapse border-2 border-gray-800 mb-6 text-xs">
+                    <table class="w-full text-left border-collapse border-2 border-gray-800 mb-20 text-base">
                         <thead class="bg-gray-200">
                             <tr>
-                                <th class="border border-gray-800 p-2 w-12 text-center font-bold">項次</th>
-                                <th class="border border-gray-800 p-2 font-bold">產品名稱與規格</th>
-                                <th class="border border-gray-800 p-2 w-20 text-center font-bold">數量</th>
-                                <th class="border border-gray-800 p-2 w-24 font-bold">備註</th>
+                                <th class="border border-gray-800 p-4 w-20 text-center font-bold">項次</th>
+                                <th class="border border-gray-800 p-4 font-bold">產品名稱與規格</th>
+                                <th class="border border-gray-800 p-4 w-40 text-center font-bold">數量</th>
+                                <th class="border border-gray-800 p-4 w-48 font-bold text-center">備註</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="border border-gray-800 p-3 text-center">1</td>
-                                <td class="border border-gray-800 p-3 font-bold text-sm text-moText">${orderRow['產品名稱']}</td>
-                                <td class="border border-gray-800 p-3 text-center font-bold text-lg">${qty}</td>
-                                <td class="border border-gray-800 p-3 text-gray-400 text-[10px]">依實物為準</td>
+                                <td class="border border-gray-800 p-6 text-center text-lg">1</td>
+                                <td class="border border-gray-800 p-6 font-bold text-2xl text-moText">${orderRow['產品名稱']}</td>
+                                <td class="border border-gray-800 p-6 text-center font-bold text-3xl tracking-wider">${qty}</td>
+                                <td class="border border-gray-800 p-6 text-gray-600 text-sm text-center">${remarkText}</td>
                             </tr>
                         </tbody>
                     </table>
 
-                    <div class="flex justify-between mt-6 px-8 text-xs">
-                        <div class="w-40 text-center border-t border-gray-800 pt-1"><p class="font-bold tracking-widest">出貨部門簽章</p></div>
-                        <div class="w-40 text-center border-t border-gray-800 pt-1"><p class="font-bold tracking-widest">客戶簽收確認</p></div>
+                    <div class="flex justify-between mt-32 px-12 text-base">
+                        <div class="w-64 text-center border-t-2 border-gray-800 pt-3"><p class="font-bold tracking-widest">出貨部門簽章</p></div>
+                        <div class="w-64 text-center border-t-2 border-gray-800 pt-3"><p class="font-bold tracking-widest">客戶簽收確認</p></div>
                     </div>
                 </div>
                 `;
-
-                // 將兩份 HTML 疊加輸出 (一式兩份)
-                let finalHtml = `
-                <div class="p-4 bg-white text-gray-800 font-sans">
-                    ${buildNote('【 客 戶 收 執 聯 】')}
-                    ${buildNote('【 公 司 存 根 聯 】')}
-                </div>
-                `;
                 
-                execHTML2PDF(finalHtml, `出貨單_${orderId}.pdf`);
+                execHTML2PDF(html, `出貨單_${orderId}.pdf`);
                 btn.innerHTML = '📄 出貨單'; btn.disabled = false;
             }).withFailureHandler(err => {
                 alert("讀取客戶資料失敗：" + err);
                 btn.innerHTML = '📄 出貨單'; btn.disabled = false;
-            }).getSheetData('客戶資料'); // 修正：從 客戶名單 -> 改為正確的 客戶資料
+            }).getSheetData('客戶資料'); 
         }
         
     </script>
