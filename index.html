@@ -1379,7 +1379,7 @@
             btn.innerHTML = isHidden ? '🙈 隱藏金額' : '👁️ 顯示金額';
         }
         
-      // ================= 出貨單與條碼產生系統 (單份滿版) =================
+      // ================= 出貨單與條碼產生系統 (精緻商務版) =================
         function printDeliveryNote(btn, orderId) {
             btn.innerHTML = '<span class="btn-spinner"></span>讀取中'; btn.disabled = true;
             
@@ -1391,71 +1391,71 @@
                 let custInfo = customers.find(c => c['客戶名稱'] === orderRow['客戶名稱']) || {};
                 
                 let canvas = document.createElement('canvas');
-                JsBarcode(canvas, orderId, { format: "CODE39", displayValue: false, height: 45, width: 1.5, margin: 0 });
+                // 條碼稍微縮小一點
+                JsBarcode(canvas, orderId, { format: "CODE39", displayValue: false, height: 30, width: 1.5, margin: 0 });
                 let barcodeBase64 = canvas.toDataURL('image/png');
                 
-                let isUrgentHtml = orderRow['急件'] === '是' ? `<div class="absolute top-4 right-4 border-4 border-red-600 text-red-600 font-bold text-3xl px-6 py-2 transform rotate-12 opacity-80">急 件</div>` : '';
+                let isUrgentHtml = orderRow['急件'] === '是' ? `<div class="absolute top-2 right-2 border-2 border-red-600 text-red-600 font-bold text-lg px-4 py-1 transform rotate-12 opacity-80">急 件</div>` : '';
                 let qty = orderRow['數量'] || orderRow['訂單數量'] || '';
-                
-                // 動態抓取備註，若無則顯示預設字眼
                 let remarkText = orderRow['備註'] || '依實物為準';
                 
                 let rawDate = orderRow['訂單日期'] || orderRow['建單日期'] || orderRow['日期'] || orderRow['建立日期'] || '如系統紀錄';
                 let orderDate = (rawDate && rawDate.includes('T')) ? rawDate.split('T')[0] : rawDate;
 
+                // 調整所有文字為 text-sm (約14px) 與 text-xs (約12px)，並縮減間距
                 let html = `
-                <div class="relative p-8 text-gray-800 font-sans bg-white min-h-[250mm]">
+                <div class="relative p-6 text-gray-800 font-sans bg-white min-h-[250mm] max-w-[210mm] mx-auto">
                     ${isUrgentHtml}
-                    <div class="text-center mb-10 border-b-2 border-gray-800 pb-4 mt-4">
-                        <h1 class="text-4xl font-bold tracking-widest">${ourInfo['客戶名稱'] || ourInfo['公司名稱'] || '仕罡印刷'}</h1>
-                        <p class="text-2xl tracking-widest mt-3 font-bold">出 貨 單</p>
+                    <div class="text-center mb-6 border-b border-gray-800 pb-3 mt-2">
+                        <h1 class="text-2xl font-bold tracking-widest">${ourInfo['客戶名稱'] || ourInfo['公司名稱'] || '仕罡印刷'}</h1>
+                        <p class="text-lg tracking-widest mt-1 font-bold">出 貨 單</p>
                     </div>
                     
-                    <div class="flex justify-between items-start mb-8">
-                        <div class="w-1/2 text-base leading-relaxed">
-                            <p class="mb-1 text-sm text-gray-500 font-bold">【出貨方】</p>
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="w-1/2 text-xs leading-relaxed">
+                            <p class="mb-1 text-[10px] text-gray-500 font-bold">【出貨方】</p>
                             <p>統一編號：${ourInfo['統一編號'] || '未建檔'}</p>
                             <p>聯絡電話：${ourInfo['聯絡電話'] || '未建檔'}</p>
                             <p>公司地址：${ourInfo['聯絡地址'] || '未建檔'}</p>
                         </div>
                         <div class="w-1/2 text-right">
-                            <img src="${barcodeBase64}" class="inline-block mb-3 h-12">
-                            <p class="text-base tracking-wider">出貨單號：<strong>${orderId}</strong></p>
-                            <p class="text-base mt-1">訂購日期：${orderDate}</p>
-                            <p class="text-sm text-gray-500 mt-1">列印日期：${new Date().toISOString().split('T')[0]}</p>
+                            <img src="${barcodeBase64}" class="inline-block mb-2 h-10">
+                            <p class="text-xs tracking-wider">出貨單號：<strong>${orderId}</strong></p>
+                            <p class="text-xs mt-1">訂購日期：${orderDate}</p>
+                            <p class="text-[10px] text-gray-500 mt-1">列印日期：${new Date().toISOString().split('T')[0]}</p>
                         </div>
                     </div>
 
-                    <div class="border border-gray-800 p-5 mb-10 bg-gray-50 text-base leading-relaxed rounded-md">
-                        <p class="mb-2 text-sm text-gray-500 font-bold">【收貨方】</p>
-                        <p class="text-xl mb-1">客戶名稱：<strong>${custInfo['客戶名稱'] || orderRow['客戶名稱']}</strong></p>
+                    <div class="border border-gray-800 p-3 mb-6 bg-gray-50 text-xs leading-relaxed rounded-sm">
+                        <p class="mb-1 text-[10px] text-gray-500 font-bold">【收貨方】</p>
+                        <p class="text-sm mb-1">客戶名稱：<strong>${custInfo['客戶名稱'] || orderRow['客戶名稱']}</strong></p>
                         <p>統一編號：${custInfo['統一編號'] || ''}</p>
                         <p>聯絡窗口：${custInfo['聯絡人'] || '負責人'} / ${custInfo['聯絡電話'] || ''}</p>
                         <p>送貨地址：${custInfo['聯絡地址'] || ''}</p>
                     </div>
 
-                    <table class="w-full text-left border-collapse border-2 border-gray-800 mb-20 text-base">
-                        <thead class="bg-gray-200">
+                    <table class="w-full text-left border-collapse border border-gray-800 mb-12 text-sm">
+                        <thead class="bg-gray-100">
                             <tr>
-                                <th class="border border-gray-800 p-4 w-20 text-center font-bold">項次</th>
-                                <th class="border border-gray-800 p-4 font-bold">產品名稱與規格</th>
-                                <th class="border border-gray-800 p-4 w-40 text-center font-bold">數量</th>
-                                <th class="border border-gray-800 p-4 w-48 font-bold text-center">備註</th>
+                                <th class="border border-gray-800 p-2 w-12 text-center font-bold">項次</th>
+                                <th class="border border-gray-800 p-2 font-bold">產品名稱與規格</th>
+                                <th class="border border-gray-800 p-2 w-20 text-center font-bold">數量</th>
+                                <th class="border border-gray-800 p-2 w-32 font-bold text-center">備註</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td class="border border-gray-800 p-6 text-center text-lg">1</td>
-                                <td class="border border-gray-800 p-6 font-bold text-2xl text-moText">${orderRow['產品名稱']}</td>
-                                <td class="border border-gray-800 p-6 text-center font-bold text-3xl tracking-wider">${qty}</td>
-                                <td class="border border-gray-800 p-6 text-gray-600 text-sm text-center">${remarkText}</td>
+                                <td class="border border-gray-800 p-3 text-center">1</td>
+                                <td class="border border-gray-800 p-3 font-bold text-base text-moText">${orderRow['產品名稱']}</td>
+                                <td class="border border-gray-800 p-3 text-center font-bold text-lg tracking-wider">${qty}</td>
+                                <td class="border border-gray-800 p-3 text-gray-600 text-xs text-center">${remarkText}</td>
                             </tr>
                         </tbody>
                     </table>
 
-                    <div class="flex justify-between mt-32 px-12 text-base">
-                        <div class="w-64 text-center border-t-2 border-gray-800 pt-3"><p class="font-bold tracking-widest">出貨部門簽章</p></div>
-                        <div class="w-64 text-center border-t-2 border-gray-800 pt-3"><p class="font-bold tracking-widest">客戶簽收確認</p></div>
+                    <div class="flex justify-between mt-20 px-8 text-xs">
+                        <div class="w-48 text-center border-t border-gray-800 pt-2"><p class="font-bold tracking-widest">出貨部門簽章</p></div>
+                        <div class="w-48 text-center border-t border-gray-800 pt-2"><p class="font-bold tracking-widest">客戶簽收確認</p></div>
                     </div>
                 </div>
                 `;
