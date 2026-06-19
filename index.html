@@ -145,7 +145,7 @@
                 </div>
                 <div><label class="block text-sm font-bold mb-1">交接內容</label><textarea id="hoContent" rows="3" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide"></textarea></div>
                 <div><label class="block text-sm font-bold mb-1">附加照片 (可選)</label>
-                    <input type="file" id="hoImage" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-gray-100 hover:file:bg-gray-200">
+                    <input type="file" id="hoImage" accept="image/*" onchange="handleImageUpload(this)" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-gray-100 hover:file:bg-gray-200">
                     <div class="mt-2 flex justify-center bg-gray-50 rounded border border-dashed border-gray-300"><img id="hoImagePreview" class="hidden max-h-32 object-contain p-1 rounded" src=""></div>
                 </div>
             </div>
@@ -946,15 +946,25 @@
             document.getElementById('rsQty').value = maxQty; document.getElementById('rsQty').setAttribute('data-max', maxQty);
             document.getElementById('rsMaxLabel').innerText = `(上限: ${maxQty})`; document.getElementById('restockModal').classList.remove('hidden');
         }
+        // ================= 修復與升級：進貨數量 0 自動結案 =================
         function submitRestock(btn) {
             const matId = document.getElementById('rsMatId').value; const orderId = document.getElementById('rsOrderId').value; 
             const vendorShipId = document.getElementById('rsVendorShipId').value; const qty = document.getElementById('rsQty').value; 
             const supplier = document.getElementById('rsSupplier').value; const op = document.getElementById('userNameDisplay').innerText;
             
-            if(!vendorShipId) return alert("請輸入廠商出貨單號！"); if(!qty) return alert("請輸入數量");
+            if(!vendorShipId) return alert("請輸入廠商出貨單號！"); 
+            if(!qty && qty !== "0") return alert("請輸入數量");
+            
+            const qtyNum = parseFloat(qty);
             const maxQty = document.getElementById('rsQty').getAttribute('data-max');
-            if(maxQty && parseFloat(qty) > parseFloat(maxQty)) return alert(`進貨數量不可大於申請上限 (${maxQty})！`);
-            if(!confirm("【二次確認】\n請確認進貨單號、數量與供應商無誤？\n寫入後將更新庫存與紀錄。")) return;
+            
+            // 判斷是否為「放棄進貨/報廢單」
+            if(qtyNum === 0) {
+                if(!confirm("【確定此單不進貨?】\n確認後此補貨單將被強制結案，\n後續要補貨需重新走申請流程！")) return;
+            } else {
+                if(maxQty && qtyNum > parseFloat(maxQty)) return alert(`進貨數量不可大於申請上限 (${maxQty})！`);
+                if(!confirm("【二次確認】\n請確認進貨單號、數量與供應商無誤？\n寫入後將更新庫存與紀錄。")) return;
+            }
             
             document.querySelectorAll('#restockModal input').forEach(el => el.disabled = true);
             btn.innerHTML = '<span class="btn-spinner"></span>處理中'; btn.disabled = true;
@@ -966,7 +976,7 @@
             }).withFailureHandler(err => { 
                 document.querySelectorAll('#restockModal input').forEach(el => el.disabled = false);
                 alert('系統異常：'+err); btn.innerHTML = '確認進貨'; btn.disabled = false; 
-            }).addRestock(matId, qty, supplier, orderId, vendorShipId, op);
+            }).addRestock(matId, qtyNum, supplier, orderId, vendorShipId, op);
         }
         function openHandoverModal() {
             document.getElementById('hoContent').value = ''; document.getElementById('hoImage').value = ''; document.getElementById('hoImagePreview').classList.add('hidden');
@@ -980,6 +990,19 @@
                 });
             }
             document.getElementById('hoAssignee').innerHTML = opts; document.getElementById('handoverModal').classList.remove('hidden');
+        }
+
+        // ================= 修復：交接照片讀取轉換 =================
+        function handleImageUpload(el) {
+            const file = el.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                hoImageBase64 = e.target.result;
+                document.getElementById('hoImagePreview').src = hoImageBase64;
+                document.getElementById('hoImagePreview').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
         }
         function submitHandover(btn) {
             const prio = document.getElementById('hoPriority').value; const content = document.getElementById('hoContent').value; const assignee = document.getElementById('hoAssignee').value; const op = document.getElementById('userNameDisplay').innerText;
@@ -1643,6 +1666,8 @@
                 }
             });
         }
+
+        
         
     </script>
     <div id="changePwdModal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4">
