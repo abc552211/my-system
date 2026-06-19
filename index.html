@@ -1119,7 +1119,26 @@
             
             btn.innerHTML = '<span class="btn-spinner"></span>檢查中'; btn.disabled = true;
             google.script.run.withSuccessHandler(res => {
-                if(!res.success) { alert(res.msg); btn.innerHTML = '檢查庫存並扣料'; btn.disabled = false; refreshSystem(); } 
+                if(!res.success) { 
+                    // === 新增：缺料智慧連動開單邏輯 ===
+                    if (res.isShortage) {
+                        if(confirm(`${res.msg}\n\n【是否將料號 ${res.matId} 帶入補貨申請？】\n(選「是」將自動開啟補貨單並填入缺少數量)`)) {
+                            closeModal('matModal'); // 關閉扣料視窗
+                            
+                            // 反查物料名稱與開啟補貨單
+                            let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === res.matId);
+                            let matName = matObj ? matObj.name.replace(res.matId+' - ', '') : '';
+                            openReplenishModal(res.matId, encodeURIComponent(matName), '');
+                            
+                            // 自動填入計算好的缺料數量與申請原因
+                            document.getElementById('replQty').value = res.shortQty;
+                            document.getElementById('replReason').value = "OMS扣料不足，系統自動帶入";
+                        }
+                    } else {
+                        alert(res.msg); 
+                    }
+                    btn.innerHTML = '檢查庫存並扣料'; btn.disabled = false; refreshSystem(); 
+                } 
                 else if (res.requireConfirm) {
                     if(confirm(res.msg)) {
                         btn.innerHTML = '<span class="btn-spinner"></span>扣料中';
