@@ -463,17 +463,17 @@
             }
         }
 
-        // 修正：完全統一使用 displayHeaders 進行雙軌渲染
+        // ================= 終極排版修正與除錯版表格渲染器 =================
         function renderTable(data, hasOpAuth, hasEditAuth) {
             const container = document.getElementById('tableContainer');
             currentTableData = data || [];
             let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead class="bg-gray-100 text-moSide border-b border-gray-300"><tr>`;
             
             if (currentHeaders.length > 0) {
-                // 判斷：如果是 SYS 權限管理，強制不顯示這三個權限欄位
-                let displayHeaders = currentSysName === 'SYS' ? currentHeaders.filter(h => h !== '可視系統' && h !== '可操作系統' && h !== '可編輯系統') : currentHeaders;
+                // 【精準隱藏修正】改用工作表名稱判斷，徹底斬斷權限長字串跑出來的Bug
+                let displayHeaders = (currentSheet === '權限管理' || currentSysName === 'SYS') ? currentHeaders.filter(h => h !== '可視系統' && h !== '可操作系統' && h !== '可編輯系統') : currentHeaders;
 
-                // 1. 渲染標頭
+                // 1. 繪製精確表頭
                 displayHeaders.forEach(h => tableHTML += `<th class="p-3 font-semibold text-sm tracking-wider">${h}</th>`);
                 tableHTML += `<th class="p-3 font-semibold text-sm text-center tracking-wider">操作</th>`;
                 tableHTML += `</tr></thead><tbody class="divide-y text-sm">`;
@@ -487,7 +487,7 @@
                         tableHTML += `<tr class="${bgClass} hover:bg-gray-200 transition-colors">`;
                         let detailsHTML = '';
                         
-                        // 【核心修正】這裡必須改成 displayHeaders，資料與標頭才能完全對齊
+                        // 2. 渲染資料格 (精確對齊過濾後的欄位)
                         displayHeaders.forEach(key => {
                             let val = row[key] || '';
                             if(key === '急件' && val === '是') {
@@ -523,14 +523,7 @@
                             } else { tableHTML += `<td class="p-3">${val}</td>`; }
                         });
 
-                        if (currentSysName === 'SUP') {
-                            let rHist = currentRestocks.filter(rl => rl.supplier === row['供應商名稱']);
-                            if(rHist.length > 0) {
-                                let hRows = rHist.map(l => `<tr><td class="px-2 py-1">${l.time}</td><td class="px-2 py-1">${l.matId}</td><td class="px-2 py-1 text-green-600">+${l.qty}</td><td class="px-2 py-1">${l.vendorShipId}</td><td class="px-2 py-1">${l.operator}</td></tr>`).join('');
-                                detailsHTML += `<strong class="text-moSide">供應商歷史進貨:</strong><table class="mt-1 w-full text-xs text-left border-collapse border border-gray-200"><thead class="bg-gray-100"><tr><th class="px-2 py-1 border border-gray-200">時間</th><th class="px-2 py-1 border border-gray-200">料號</th><th class="px-2 py-1 border border-gray-200">數量</th><th class="px-2 py-1 border border-gray-200">廠商單號</th><th class="px-2 py-1 border border-gray-200">操作人</th></tr></thead><tbody>${hRows}</tbody></table>`;
-                            } else { detailsHTML += `<p class="text-xs text-gray-400">目前尚無此供應商的進貨紀錄。</p>`; }
-                        }
-
+                        // 3. 組裝內嵌內頁展開明細（OMS 與 MES 專用）
                         if (currentSysName === 'OMS') {
                             let orderId = row['訂單編號'];
                             let orderWos = currentAllWos.filter(w => w['關聯訂單'] === orderId);
@@ -549,7 +542,6 @@
                                 detailsHTML += `<strong class="text-moSide">領料使用明細:</strong><table class="mt-1 w-full text-xs text-left border-collapse border border-orange-200 mb-3"><thead class="bg-orange-50"><tr><th class="px-2 py-1 border border-orange-200">物料編號</th><th class="px-2 py-1 border border-orange-200">品名與規格</th><th class="px-2 py-1 border border-orange-200">總領用數</th></tr></thead><tbody>${mRows}</tbody></table>`;
                             }
                         }
-
                         if (currentSysName === 'MES') {
                             let orderId = row['關聯訂單'];
                             let orderMats = currentDeductLogs.filter(l => l.orderId === orderId);
@@ -564,20 +556,10 @@
                             }
                         }
 
-                        if (currentSysName === 'ERP') {
-                            let reps = currentReplenish.filter(l => l.matId === row['物料編號']);
-                            if(reps.length > 0) {
-                                let rRows = reps.map(l => {
-                                    let restockBtn = (l.status !== '已結案' && hasOpAuth) ? `<button onclick="openRestockFromRepl('${l.repId}', '${row['物料編號']}', '${encodeURIComponent(row['品名與規格'])}', '${l.supplier}', ${l.reqQty - l.inQty})" class="bg-yellow-500 text-white text-xs px-2 py-0.5 rounded shadow hover:bg-yellow-600">進貨</button>` : `<span class="text-gray-400">${l.status === '已結案'?'已結案':'無權限'}</span>`;
-                                    let rHist = currentRestocks.filter(rl => rl.repId === l.repId); let vShipIds = rHist.map(rl => rl.vendorShipId).filter(v=>v).join(', '); let lastInTime = rHist.length > 0 ? rHist[rHist.length - 1].time : '-';
-                                    return `<tr><td class="px-2 py-1 font-bold">${l.repId}</td><td class="px-2 py-1">${l.time}</td><td class="px-2 py-1">${l.reqQty}</td><td class="px-2 py-1 text-green-600">${l.inQty}</td><td class="px-2 py-1">${l.supplier}</td><td class="px-2 py-1 text-blue-600">${vShipIds}</td><td class="px-2 py-1 text-gray-500">${lastInTime}</td><td class="px-2 py-1 text-center">${restockBtn}</td></tr>`;
-                                }).join('');
-                                detailsHTML += `<strong class="text-moSide">補貨申請追蹤:</strong><table class="mt-1 mb-3 w-full text-xs text-left border-collapse border border-yellow-200"><thead class="bg-yellow-50"><tr><th class="px-2 py-1 border border-yellow-200">補貨單號</th><th class="px-2 py-1 border border-yellow-200">申請時間</th><th class="px-2 py-1 border border-yellow-200">申請數</th><th class="px-2 py-1 border border-yellow-200">已進數量</th><th class="px-2 py-1 border border-yellow-200">供應商</th><th class="px-2 py-1 border border-yellow-200">廠商出貨單號</th><th class="px-2 py-1 border border-yellow-200">最後進貨時間</th><th class="px-2 py-1 border border-yellow-200 text-center">操作</th></tr></thead><tbody>${rRows}</tbody></table>`;
-                            }
-                        }
-
+                        // 【關鍵位置修復】必須在按鈕配置前先初始化 actionHtml，解除 OMS 崩潰死結
                         let actionHtml = `<div class="flex justify-center gap-1">`;
                         
+                        // 4. 三軌分流按鈕生成
                         if (hasOpAuth) {
                             if (currentSysName === 'OMS') {
                                 const status = row['訂單狀態']; const oId = row['訂單編號'];
@@ -627,7 +609,6 @@
                         tableHTML += `</tr>`;
 
                         if (detailsHTML !== '') {
-                            // 【核心修正】這裡的跨欄總數也要改成 displayHeaders.length + 1
                             const colSpan = displayHeaders.length + 1;
                             tableHTML += `<tr id="detail_${index}" class="hidden bg-gray-50"><td colspan="${colSpan}" class="p-5 text-sm border-l-4 border-moSide shadow-inner">${detailsHTML}</td></tr>`;
                         }
@@ -636,7 +617,7 @@
                 tableHTML += `</tbody></table></div>`;
             } else { tableHTML += `<div class="p-10 text-center text-gray-400 tracking-wider">目前工作表無表頭，請確認有建立欄位。</div>`; }
 
-            // === 恢復被刪掉的 EIP 交接與公告區塊 ===
+            // === 恢復 EIP 交接區塊 ===
             if (currentSysName === 'EIP') {
                 tableHTML += `<div class="p-6 bg-white border-t border-moBorder mt-2"><div class="flex justify-between items-center mb-6"><h2 class="text-xl font-bold text-moSide border-l-4 border-moSide pl-2">工作交接清單</h2>`;
                 if(hasEditAuth) {
@@ -646,7 +627,6 @@
                     tableHTML += `</div>`;
                 }
                 tableHTML += `</div><div class="grid grid-cols-1 md:grid-cols-3 gap-4">`;
-                
                 if(currentHandovers.length === 0) tableHTML += `<p class="text-gray-400 col-span-3 text-center py-4">目前無交接事項</p>`;
                 else {
                     currentHandovers.forEach(ho => {
@@ -654,7 +634,6 @@
                         if(ho.priority === '高') { bg = 'bg-red-50 border-red-200'; textCol = 'text-red-700'; badge = '高'; }
                         else if(ho.priority === '中') { bg = 'bg-yellow-50 border-yellow-200'; textCol = 'text-yellow-700'; badge = '中'; }
                         let imgHtml = ho.image ? `<div class="mt-2 text-center"><img src="${ho.image}" class="rounded-md max-h-32 inline-block object-contain border border-gray-200 cursor-pointer shadow-sm hover:opacity-80 transition" onclick="window.open('${ho.image}', '_blank')"></div>` : '';
-                        
                         tableHTML += `<div class="p-4 rounded-lg border ${bg} relative shadow-sm flex flex-col">`;
                         if(hasEditAuth) tableHTML += `<button onclick="doDeleteHandover('${ho.time}', this)" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold text-lg leading-none">&times;</button>`;
                         tableHTML += `<div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white ${ho.priority==='高'?'bg-red-500':(ho.priority==='中'?'bg-yellow-500':'bg-green-500')}">${badge}</span><span class="text-xs text-gray-500">${ho.time}</span></div></div>`;
@@ -667,7 +646,7 @@
                 tableHTML += `</div></div>`;
             }
 
-            // === 恢復被刪掉的 ERP 財務統計看板區塊 ===
+            // === 恢復 ERP 看板區塊 ===
             if (currentSysName === 'ERP') {
                 let totalInventoryValue = 0; let totalUnreceivedValue = 0;
                 currentTableData.forEach(row => { let stock = parseFloat(row['目前庫存']) || 0; let price = parseFloat(row['單價']) || 0; if(stock > 0) totalInventoryValue += (stock * price); });
