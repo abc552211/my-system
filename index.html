@@ -1196,24 +1196,21 @@
             const formGrid = document.getElementById('formGrid'); formGrid.innerHTML = '';
             const rowData = rowIndex !== -1 ? currentTableData[rowIndex] : {};
 
+            let isSysAuth = currentSheet === '權限管理';
+            let viewAuthStr = rowData['可視系統'] || '';
+            let opAuthStr = rowData['可操作系統'] || '';
+            let editAuthStr = rowData['可編輯系統'] || '';
+
             currentHeaders.forEach(header => {
+                // 遇到這三個權限欄位時先跳過，統一在最後方繪製專業宮格
+                if (isSysAuth && (header === '可視系統' || header === '可編輯系統' || header === '可操作系統')) {
+                    return; 
+                }
+
                 const val = rowData[header] || '';
                 let fieldHTML = `<div><label class="block text-sm font-bold mb-1">${header}</label>`;
 
-                if (currentSheet === '權限管理' && (header === '可視系統' || header === '可編輯系統')) {
-                    const sysList = ['EIP', 'CRM', 'SUP', 'ERP', 'OMS', 'MES', 'RPT', 'EQS', 'EQM', 'SYS'];
-                    let cbHtml = sysList.map(sys => {
-                        let checked = val.split(',').map(s => s.trim()).includes(sys) ? 'checked' : '';
-                        return `
-                            <label class="inline-flex items-center justify-start p-2 bg-white rounded-md border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors select-none">
-                                <input type="checkbox" value="${sys}" data-header="${header}" class="auth-cb rounded text-moSide focus:ring-moSide w-4 h-4" ${checked}>
-                                <span class="ml-2 text-xs font-bold text-moText tracking-wider">${sys}</span>
-                            </label>
-                        `;
-                    }).join('');
-                    fieldHTML += `<div class="p-3 bg-gray-50 rounded-lg border border-moBorder grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">${cbHtml}</div>`;
-                }
-                else if (header === '員工姓名' && currentSysName === 'SYS') {
+                if (header === '員工姓名' && currentSysName === 'SYS') {
                     fieldHTML += `<input type="text" id="input_${header}" value="${val}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide" placeholder="請輸入員工姓名">`;
                 }
                 else if (header === '顯示' && currentSysName === 'SYS') {
@@ -1263,7 +1260,73 @@
                 
                 formGrid.innerHTML += fieldHTML + `</div>`;
             });
+
+            // 繪製【權限宮格矩陣】
+            if (isSysAuth) {
+                const sysList = ['EIP', 'OMS', 'MES', 'ERP', 'EQS', 'EQM', 'CRM', 'SUP', 'RPT', 'SYS'];
+                const sysMap = { 'EIP':'內部公告', 'CRM':'客戶資料', 'SUP':'供應商資料', 'ERP':'物料庫存', 'OMS':'訂單管理', 'MES':'生產工單', 'EQS':'設備狀態', 'EQM':'設備維護', 'RPT':'報表', 'SYS':'權限' };
+                
+                let gridHtml = `
+                <div class="col-span-1 md:col-span-2 mt-2">
+                    <label class="block text-sm font-bold mb-2 text-moSide border-l-4 border-moSide pl-2">系統權限矩陣設定</label>
+                    <div class="overflow-x-auto border border-moBorder rounded-lg shadow-sm">
+                        <table class="w-full text-center text-sm border-collapse bg-white">
+                            <thead class="bg-gray-100 text-moSide">
+                                <tr>
+                                    <th class="p-2 border-b border-r border-moBorder w-1/4">系統模組</th>
+                                    <th class="p-2 border-b border-r border-moBorder w-1/4">可視 (查看)</th>
+                                    <th class="p-2 border-b border-r border-moBorder w-1/4 text-blue-600">操作 (報修/完工)</th>
+                                    <th class="p-2 border-b border-moBorder w-1/4 text-red-600">編輯 (新增/修改)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                `;
+                
+                sysList.forEach(sys => {
+                    let hasView = viewAuthStr.includes(sys) ? 'checked' : '';
+                    let hasOp = opAuthStr.includes(sys) ? 'checked' : '';
+                    let hasEdit = editAuthStr.includes(sys) ? 'checked' : '';
+                    
+                    gridHtml += `
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="p-2 border-r border-gray-200 font-bold text-gray-700 tracking-wider text-left pl-4">${sys} <span class="text-xs text-gray-400 font-normal ml-1 hidden sm:inline">(${sysMap[sys]})</span></td>
+                                    <td class="p-2 border-r border-gray-200"><input type="checkbox" class="auth-view w-4 h-4 text-moSide focus:ring-moSide cursor-pointer" value="${sys}" ${hasView} onchange="syncAuth(this, 'view')"></td>
+                                    <td class="p-2 border-r border-gray-200"><input type="checkbox" class="auth-op w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer" value="${sys}" ${hasOp} onchange="syncAuth(this, 'op')"></td>
+                                    <td class="p-2"><input type="checkbox" class="auth-edit w-4 h-4 text-red-600 focus:ring-red-500 cursor-pointer" value="${sys}" ${hasEdit} onchange="syncAuth(this, 'edit')"></td>
+                                </tr>
+                    `;
+                });
+                
+                gridHtml += `</tbody></table></div><p class="text-xs text-gray-400 mt-2">💡 提示：勾選「編輯」會自動賦予「操作」與「可視」權限；取消「可視」會自動撤銷後方權限。</p></div>`;
+                formGrid.innerHTML += gridHtml;
+            }
+
             document.getElementById('formModal').classList.remove('hidden');
+        }
+
+        // 自動相容打勾邏輯 (編輯 -> 操作 -> 可視)
+        function syncAuth(el, type) {
+            const tr = el.closest('tr');
+            const viewCb = tr.querySelector('.auth-view');
+            const opCb = tr.querySelector('.auth-op');
+            const editCb = tr.querySelector('.auth-edit');
+            
+            // 勾選編輯：操作和可視自動打勾
+            if(type === 'edit' && el.checked) {
+                opCb.checked = true; viewCb.checked = true;
+            }
+            // 勾選操作：可視自動打勾
+            if(type === 'op' && el.checked) {
+                viewCb.checked = true;
+            }
+            // 取消操作：編輯不能保留
+            if(type === 'op' && !el.checked) {
+                editCb.checked = false;
+            }
+            // 取消可視：操作和編輯都不能保留
+            if(type === 'view' && !el.checked) {
+                opCb.checked = false; editCb.checked = false;
+            }
         }
 
         function submitForm(btn) {
@@ -1272,14 +1335,26 @@
             let rowDataObj = {};
             
             currentHeaders.forEach(h => { 
-                if (currentSheet === '權限管理' && (h === '可視系統' || h === '可編輯系統')) {
-                    const checkedVals = Array.from(document.querySelectorAll(`.auth-cb[data-header="${h}"]:checked`)).map(cb => cb.value);
-                    rowDataObj[h] = checkedVals.join(',');
+                // 將宮格權限跳過，等一下統一彙整
+                if (currentSheet === '權限管理' && (h === '可視系統' || h === '可操作系統' || h === '可編輯系統')) {
+                    // skip
                 } else {
                     const el = document.getElementById(`input_${h}`); 
                     rowDataObj[h] = el ? el.value : ''; 
                 }
             });
+
+            // 統一彙整宮格權限矩陣的打勾狀態
+            if (currentSheet === '權限管理') {
+                let vArr = [], oArr = [], eArr = [];
+                document.querySelectorAll('.auth-view:checked').forEach(cb => vArr.push(cb.value));
+                document.querySelectorAll('.auth-op:checked').forEach(cb => oArr.push(cb.value));
+                document.querySelectorAll('.auth-edit:checked').forEach(cb => eArr.push(cb.value));
+                
+                rowDataObj['可視系統'] = vArr.join(',');
+                rowDataObj['可操作系統'] = oArr.join(',');
+                rowDataObj['可編輯系統'] = eArr.join(',');
+            }
             
             const op = document.getElementById('userNameDisplay').innerText;
             const target = editingRowIndex !== -1 ? 'updateSheetData' : 'addSheetData';
