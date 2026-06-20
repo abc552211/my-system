@@ -176,43 +176,35 @@
     <div id="matModal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-xl w-full max-w-2xl border border-gray-300 flex flex-col shadow-2xl overflow-hidden max-h-[90vh]">
             <div class="p-4 border-b bg-gray-50 font-bold text-moSide flex justify-between items-center">
-                <span id="matModalTitle">📐 兩階段用料成本與商務估價精算嚮導</span>
+                <span id="matModalTitle">📐 訂單配料成本與商務估價</span>
                 <span id="matOrderId" class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs"></span>
             </div>
             <input type="hidden" id="matActionType">
-            <input type="hidden" id="matAddonQty">
-
-            <div id="estStep1Panel" class="p-6 overflow-y-auto space-y-4 flex-1">
-                <div id="estTopBusinessGroup" class="grid grid-cols-2 md:grid-cols-5 gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+            <div class="p-6 overflow-y-auto space-y-4 flex-1">
+                <div id="estTopBusinessGroup" class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
                     <div><label class="block text-xs font-bold text-gray-500 mb-1">生產數量</label><input type="number" id="estQty" value="1" min="1" oninput="calcMatCost()" class="w-full p-2 border rounded-lg text-sm font-bold"></div>
-                    <div><label class="block text-xs font-bold text-gray-500 mb-1">對客單價</label><input type="number" id="estUnitPrice" value="0" min="0" oninput="calcMatCost()" class="w-full p-2 border rounded-lg text-sm font-bold text-blue-700"></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">對客單價 <span class="text-[10px] text-gray-400 font-normal">(系統自算)</span></label><input type="number" id="estUnitPrice" readonly class="w-full p-2 border rounded-lg text-sm font-bold text-blue-700 bg-gray-100"></div>
                     <div><label class="block text-xs font-bold text-gray-500 mb-1">運費成本</label><input type="number" id="estFreightCost" value="0" min="0" oninput="calcMatCost()" class="w-full p-2 border rounded-lg text-sm font-bold text-red-600"></div>
                     <div><label class="block text-xs font-bold text-gray-500 mb-1">運費報價</label><input type="number" id="estFreightPrice" value="0" min="0" oninput="calcMatCost()" class="w-full p-2 border rounded-lg text-sm font-bold text-green-700"></div>
-                    <div class="col-span-2 md:col-span-1"><label class="block text-xs font-bold text-gray-500 mb-1">運費備註</label><input type="text" id="estFreightNote" class="w-full p-2 border rounded-lg text-sm" placeholder="常態物流"></div>
                 </div>
 
-                <div class="flex justify-between items-center border-b pb-2"><h3 class="font-bold text-sm text-moSide">📋 預計消耗生產物料配料清單</h3><button onclick="addMatRow()" class="bg-moSide text-white text-xs px-3 py-1 rounded shadow hover:bg-gray-600 transition">+ 新增物料</button></div>
+                <div class="flex justify-between items-center border-b pb-2"><h3 class="font-bold text-sm text-moSide">📋 生產物料配料清單</h3><button id="addMatBtn" onclick="addMatRow()" class="bg-moSide text-white text-xs px-3 py-1 rounded shadow hover:bg-gray-600 transition">+ 新增物料</button></div>
                 <div id="matList" class="space-y-2 max-h-48 overflow-y-auto"></div>
                 
                 <div class="p-4 bg-gray-50 rounded-lg flex flex-wrap justify-between items-center border text-sm gap-2">
-                    <div>產品總價：<span class="font-bold text-blue-600" id="estTotalProductSum">$ 0</span></div>
+                    <div>總售價：<span class="font-bold text-blue-600" id="estTotalProductSum">$ 0</span></div>
                     <div>總材料成本：<span class="font-bold text-red-500" id="matTotalCost">0</span></div>
                     <div class="border-l pl-2 font-bold text-moSide">估算總利潤：<span id="estEstProfit" class="text-green-600">$ 0</span></div>
                 </div>
-            </div>
 
-            <div id="estStep2Panel" class="p-6 hidden flex-1 flex flex-col space-y-2">
-                <label class="block text-sm font-bold text-moSide">📝 嚮導第二步：修訂確認最終「訂單細項 / 備註摘要」</label>
-                <p class="text-xs text-gray-400">系統已為您自動彙整配料摘要，您可以在下方進行最終增修，送出後即完成估價流程。</p>
-                <textarea id="estFinalDetailsText" class="w-full flex-1 p-3 border rounded-xl text-sm focus:ring-1 focus:ring-moSide" style="min-height:200px; resize:none;"></textarea>
-            </div>
-
-            <div class="p-4 border-t flex justify-between bg-gray-50 items-center">
-                <button id="estBackBtn" onclick="switchEstStep(1)" class="px-4 py-2 text-xs border bg-white hover:bg-gray-100 rounded-lg hidden font-bold">⬅ 上一步：修改配料</button>
-                <div class="flex gap-2 ml-auto">
-                    <button onclick="closeModal('matModal')" class="px-4 py-2 text-xs border hover:bg-gray-100 rounded-lg">取消</button>
-                    <button id="matSubmitBtn" onclick="handleEstNextOrSubmit(this)" class="px-4 py-2 text-xs bg-moSide hover:bg-gray-600 text-white rounded-lg font-bold shadow">下一步：確認訂單細項 ➡</button>
+                <div>
+                    <label class="block text-sm font-bold text-moSide mb-1">📝 訂單細項 / 摘要備註 (供您確認或微調)</label>
+                    <textarea id="estFinalDetailsText" class="w-full flex-1 p-3 border rounded-xl text-sm focus:ring-1 focus:ring-moSide" style="min-height:100px; resize:vertical;"></textarea>
                 </div>
+            </div>
+            <div class="p-4 border-t flex justify-end gap-2 bg-gray-50">
+                <button onclick="closeModal('matModal')" class="px-4 py-2 text-xs border hover:bg-gray-100 rounded-lg">取消</button>
+                <button id="matSubmitBtn" onclick="submitMaterialCheck(this)" class="px-4 py-2 text-xs bg-moSide hover:bg-gray-600 text-white rounded-lg font-bold shadow">確認送出</button>
             </div>
         </div>
     </div>
@@ -372,6 +364,23 @@
                     }
                 }
             });
+        }
+
+        // ================= 【修正】支援 % 號多重模糊搜尋 =================
+        function filterMatOptions(inputEl, listId) {
+            let q = inputEl.value.toLowerCase();
+            let keywords = q.split('%').map(k => k.trim()).filter(k=>k);
+            let dl = document.getElementById(listId);
+            let html = ''; let count = 0;
+            (currentDropdowns['物料編號'] || []).forEach(m => {
+                let text = (m.id + ' ' + m.name).toLowerCase();
+                let match = keywords.length === 0 ? true : keywords.every(k => text.includes(k));
+                if(match && count < 50) { 
+                    html += `<option value="${m.id} - ${m.name}" data-price="${m.price}" data-sell="${m.sellPrice}"></option>`; 
+                    count++; 
+                }
+            });
+            dl.innerHTML = html;
         }
 
         // --- 網頁載入時自動抓取人員名單 ---
@@ -634,7 +643,7 @@
                                 if (status === '估算中') {
                                     btnSlot4 = `<button onclick="openMatModal('${oId}', 'estimate')" class="w-20 bg-indigo-500 text-white py-1 rounded hover:bg-indigo-600 font-bold shadow animate-pulse">📐 配料估價</button>`;
                                 } else if (status === '待扣料' || status === '原料不足') {
-                                    btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded hover:bg-yellow-600 font-bold shadow">📦 執行扣料</button>`;
+                                    btnSlot4 = `<div class="flex gap-1 w-32"><button onclick="openMatModal('${oId}', 'estimate')" class="flex-1 bg-gray-500 text-white py-1 rounded hover:bg-gray-600 font-bold" title="重新配料估價">再次估價</button><button onclick="openMatModal('${oId}', 'normal')" class="flex-1 bg-yellow-500 text-white py-1 rounded hover:bg-yellow-600 font-bold shadow" title="確認配料並執行庫存扣減">📦 扣料</button></div>`;
                                 } else if (status === '待排程') {
                                     btnSlot4 = `<button onclick="openWoModal('${oId}', '${encodeURIComponent(row['產品名稱']||'')}')" class="w-20 bg-green-600 text-white py-1 rounded hover:bg-green-700 font-bold">📅 排程派工</button>`;
                                 } else if (status === '製作完成') {
@@ -1160,87 +1169,100 @@
             if(!hasMats) container.innerHTML = '<p class="text-xs text-gray-400 p-2 bg-gray-50 rounded">此單尚無領料紀錄。</p>';
         }
 
-        // ================= 兩階段估價與扣料視窗初始化 =================
+        // ================= 扣料視窗開啟與歷史配料帶入 =================
         function openMatModal(orderId, actionType) {
             document.getElementById('matOrderId').innerText = orderId;
             document.getElementById('matActionType').value = actionType;
             document.getElementById('matList').innerHTML = '';
             
-            // 初始化嚮導步驟
-            switchEstStep(1);
-
-            // 判斷是否為初次估價模式
             const isEst = (actionType === 'estimate');
             document.getElementById('estTopBusinessGroup').classList.toggle('hidden', !isEst);
-            document.getElementById('matModalTitle').innerText = isEst ? "📐 兩階段用料成本與商務估價精算嚮導" : "📦 執行實體倉庫扣料備料檢核";
-            document.getElementById('matSubmitBtn').innerText = isEst ? "下一步：確認訂單細項 ➡" : "檢查庫存並實體扣料";
+            document.getElementById('matModalTitle').innerText = isEst ? "📐 訂單配料成本與商務估價" : "📦 最終確認：執行實體扣料";
+            document.getElementById('matSubmitBtn').innerText = isEst ? "儲存估價配料" : "確認無誤，執行扣料";
+            document.getElementById('addMatBtn').classList.toggle('hidden', !isEst);
 
-            // 重置輸入值
-            if(isEst) {
-                document.getElementById('estQty').value = 1; document.getElementById('estUnitPrice').value = 0;
-                document.getElementById('estFreightCost').value = 0; document.getElementById('estFreightPrice').value = 0;
-                document.getElementById('estFreightNote').value = '';
+            let rowData = currentTableData.find(r => r['訂單編號'] === orderId) || {};
+            
+            // 載入先前的商務數值與備註
+            document.getElementById('estQty').value = rowData['數量'] || 1;
+            document.getElementById('estFreightCost').value = rowData['運費成本'] || 0;
+            document.getElementById('estFreightPrice').value = rowData['運費報價'] || 0;
+            document.getElementById('estFinalDetailsText').value = rowData['訂單細項'] || '';
+            document.getElementById('estFinalDetailsText').disabled = !isEst; // 扣料時只能看
+
+            // 解析歷史配料明細
+            let savedMats = [];
+            try { savedMats = JSON.parse(rowData['配料明細'] || '[]'); } catch(e){}
+
+            if (savedMats.length > 0) {
+                savedMats.forEach(m => {
+                    let matObj = (currentDropdowns['物料編號']||[]).find(opt => opt.id === m.id);
+                    addMatRow(m.id, m.qty, matObj ? matObj.name.replace(m.id+' - ', '') : '');
+                });
+            } else {
+                addMatRow();
             }
 
-            addMatRow(); calcMatCost();
+            // 若為扣料確認模式，鎖定輸入框防呆
+            setTimeout(() => {
+                document.querySelectorAll('.mat-row input, .mat-row button').forEach(el => { el.disabled = !isEst; });
+                calcMatCost();
+            }, 100);
+
             document.getElementById('matModal').classList.remove('hidden');
         }
-        // ================= 扣料檢查：新增物料列 (升級模糊搜尋與移除功能) =================
-        function addMatRow() {
+        
+        function addMatRow(matId = '', qty = '', matName = '') {
             let rowCount = document.querySelectorAll('.mat-row').length;
-            let listId = 'dl_mat_' + Date.now() + '_' + rowCount; // 產生唯一ID避免清單衝突
+            let listId = 'dl_mat_' + Date.now() + '_' + rowCount;
+            let initVal = matId ? `${matId} - ${matName}` : '';
             
-            let opts = '';
-            if(currentDropdowns['物料編號']) {
-                currentDropdowns['物料編號'].forEach(m => {
-                    opts += `<option value="${m.name}" data-price="${m.price}"></option>`;
-                });
-            }
-            
-            const div = document.createElement('div'); 
-            div.className = 'flex gap-2 mat-row items-center';
+            const div = document.createElement('div'); div.className = 'flex gap-2 mat-row items-center';
             div.innerHTML = `
                 <div class="flex-1 relative">
-                    <input list="${listId}" class="mat-sel-input w-full p-2 border rounded focus:ring-1 focus:ring-moSide text-sm" placeholder="請輸入料號或品名關鍵字..." oninput="calcMatCost()" onchange="calcMatCost()">
-                    <datalist id="${listId}">${opts}</datalist>
+                    <input list="${listId}" value="${initVal}" class="mat-sel-input w-full p-2 border rounded focus:ring-1 focus:ring-moSide text-sm" placeholder="輸入關鍵字可用 % 隔開 (如 A紙%250g)" onfocus="filterMatOptions(this, '${listId}')" oninput="filterMatOptions(this, '${listId}'); calcMatCost();" onchange="calcMatCost()">
+                    <datalist id="${listId}"></datalist>
                 </div>
-                <input type="number" class="mat-qty w-24 p-2 border rounded focus:ring-1 focus:ring-moSide text-sm" placeholder="數量" onkeyup="calcMatCost()" onchange="calcMatCost()" min="0">
-                <button onclick="this.closest('.mat-row').remove(); calcMatCost();" class="text-red-400 font-bold px-2 hover:text-red-600 transition-colors text-lg" title="移除此列">&times;</button>
+                <input type="number" value="${qty}" class="mat-qty w-24 p-2 border rounded focus:ring-1 focus:ring-moSide text-sm" placeholder="數量" onkeyup="calcMatCost()" onchange="calcMatCost()" min="0">
+                <button onclick="this.closest('.mat-row').remove(); calcMatCost();" class="text-red-400 font-bold px-2 hover:text-red-600 text-lg">&times;</button>
             `;
             document.getElementById('matList').appendChild(div);
+            if(initVal) filterMatOptions(div.querySelector('.mat-sel-input'), listId);
         }
 
-        // ================= 智慧金額與利潤即時精密演算 =================
+        // ================= 智慧金額自動精算 =================
         function calcMatCost() {
-            let matTotal = 0;
+            let matTotalCost = 0; let matTotalSell = 0;
             document.querySelectorAll('.mat-row').forEach(row => {
                 const input = row.querySelector('.mat-sel-input'); const qtyInput = row.querySelector('.mat-qty');
                 if (input && qtyInput && input.value && qtyInput.value) {
                     const datalist = row.querySelector('datalist');
                     const option = Array.from(datalist.options).find(opt => opt.value === input.value);
                     const price = option ? (parseFloat(option.getAttribute('data-price')) || 0) : 0;
-                    matTotal += (price * parseFloat(qtyInput.value || 0));
+                    const sellPrice = option ? (parseFloat(option.getAttribute('data-sell')) || 0) : 0; // 抓取售價
+                    const q = parseFloat(qtyInput.value) || 0;
+                    matTotalCost += (price * q); matTotalSell += (sellPrice * q);
                 }
             });
-            document.getElementById('matTotalCost').innerText = matTotal.toLocaleString();
+            document.getElementById('matTotalCost').innerText = matTotalCost.toLocaleString();
 
-            // 如果是估價模式，額外精密同步連動商務利潤
-            if(document.getElementById('matActionType').value === 'estimate') {
-                let qty = parseFloat(document.getElementById('estQty').value || 0);
-                let uPrice = parseFloat(document.getElementById('estUnitPrice').value || 0);
-                let fCost = parseFloat(document.getElementById('estFreightCost').value || 0);
-                let fPrice = parseFloat(document.getElementById('estFreightPrice').value || 0);
+            let qty = parseFloat(document.getElementById('estQty').value) || 1;
+            // 系統自動由材料售價反推對客單價
+            let autoUnitPrice = Math.round(matTotalSell / qty) || 0;
+            document.getElementById('estUnitPrice').value = autoUnitPrice; 
+            
+            let fCost = parseFloat(document.getElementById('estFreightCost').value || 0);
+            let fPrice = parseFloat(document.getElementById('estFreightPrice').value || 0);
 
-                let productSum = qty * uPrice;
-                let totalRevenue = productSum + fPrice;
-                let totalCost = matTotal + fCost;
-                let netProfit = totalRevenue - totalCost;
+            let productSum = qty * autoUnitPrice;
+            let totalRevenue = productSum + fPrice;
+            let totalCost = matTotalCost + fCost;
+            let netProfit = totalRevenue - totalCost;
 
-                document.getElementById('estTotalProductSum').innerText = "$ " + productSum.toLocaleString();
-                let profitEl = document.getElementById('estEstProfit');
-                profitEl.innerText = "$ " + netProfit.toLocaleString();
-                profitEl.className = netProfit >= 0 ? "text-green-600 font-bold" : "text-red-600 font-bold";
-            }
+            document.getElementById('estTotalProductSum').innerText = "$ " + productSum.toLocaleString();
+            let profitEl = document.getElementById('estEstProfit');
+            profitEl.innerText = "$ " + netProfit.toLocaleString();
+            profitEl.className = netProfit >= 0 ? "text-green-600 font-bold" : "text-red-600 font-bold";
         }
 
         // 嚮導下一步或最終送出智慧分流器
@@ -1255,7 +1277,6 @@
             }
         }
 
-        // ================= 最終送出核心處理 =================
         function submitMaterialCheck(btn) {
             const orderId = document.getElementById('matOrderId').innerText;
             const actionType = document.getElementById('matActionType').value;
@@ -1264,24 +1285,21 @@
             const inputs = document.querySelectorAll('.mat-sel-input'); const qtys = document.querySelectorAll('.mat-qty');
             let matArr = [];
             for(let i=0; i<inputs.length; i++) { 
-                if(inputs[i].value && qtys[i].value) { 
-                    matArr.push({ id: inputs[i].value.split(' ')[0], qty: qtys[i].value }); 
-                } 
+                if(inputs[i].value && qtys[i].value) { matArr.push({ id: inputs[i].value.split(' ')[0], qty: qtys[i].value }); } 
             }
             if(matArr.length === 0) return alert("請至少輸入一項物料與數量");
             
             btn.innerHTML = '<span class="btn-spinner"></span>處理中'; btn.disabled = true;
 
-            // 封裝兩階段估報價數據
             let estParams = null;
             if(actionType === 'estimate') {
                 estParams = {
                     qty: document.getElementById('estQty').value,
-                    unitPrice: document.getElementById('estUnitPrice').value,
-                    totalAmount: (parseFloat(document.getElementById('estQty').value || 0) * parseFloat(document.getElementById('estUnitPrice').value || 0)),
+                    unitPrice: document.getElementById('estUnitPrice').value, // 已是自動算出
+                    totalAmount: (parseFloat(document.getElementById('estQty').value||0) * parseFloat(document.getElementById('estUnitPrice').value||0)),
                     freightCost: document.getElementById('estFreightCost').value,
                     freightPrice: document.getElementById('estFreightPrice').value,
-                    freightNote: document.getElementById('estFreightNote').value,
+                    freightNote: '', // 運費備註已移至新增表單，此處不覆蓋
                     details: document.getElementById('estFinalDetailsText').value
                 };
             }
@@ -1289,33 +1307,22 @@
             google.script.run.withSuccessHandler(res => {
                 if(!res.success) { 
                     if (res.isShortage) {
-                        // 【修正 5】點選補貨一鍵直連，並將所有缺少明細完整揭露於文字內
-                        showSmartChoice(
-                            "⚠️ 原料庫存不足通報",
-                            `系統在庫存檢核時發現原料缺料！\n\n缺少物料細項清單：\n${res.msg}\n\n是否要立即一鍵開啟補貨申請單？`,
-                            [
-                                { 
-                                    text: "🚀 建立補貨申請", 
-                                    class: "px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700", 
-                                    callback: () => {
-                                        closeModal('matModal');
-                                        let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === res.matId);
-                                        openReplenishModal(res.matId, encodeURIComponent(matObj ? matObj.name.replace(res.matId+' - ', '') : '配套原料'), res.supplier || '');
-                                        document.getElementById('replQty').value = res.shortQty;
-                                        document.getElementById('replReason').value = `OMS扣料不足自動連帶(單號:${orderId})`;
-                                    } 
-                                },
-                                { text: "返回調整", class: "px-4 py-2 border text-gray-500 rounded-lg text-xs font-bold hover:bg-gray-100", callback: null }
-                            ]
-                        );
+                        showSmartChoice("⚠️ 原料庫存不足", `系統發現原料缺料：\n${res.msg}\n\n是否立即一鍵開啟補貨申請單？`, [
+                            { text: "🚀 建立補貨申請", class: "px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700", callback: () => {
+                                closeModal('matModal'); let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === res.matId);
+                                openReplenishModal(res.matId, encodeURIComponent(matObj ? matObj.name.replace(res.matId+' - ', '') : '配套原料'), res.supplier || '');
+                                document.getElementById('replQty').value = res.shortQty; document.getElementById('replReason').value = `OMS扣料不足(單號:${orderId})`;
+                            }},
+                            { text: "返回調整", class: "px-4 py-2 border text-gray-500 rounded-lg text-xs font-bold hover:bg-gray-100", callback: null }
+                        ]);
                     } else { alert(res.msg); }
-                    btn.innerHTML = '送出'; btn.disabled = false; refreshSystem(); 
+                    btn.innerHTML = actionType==='estimate'?'儲存估價配料':'確認無誤，執行扣料'; btn.disabled = false; refreshSystem(); 
                 } 
                 else {
                     alert(res.msg); closeModal('matModal'); refreshSystem();
-                    btn.innerHTML = '送出'; btn.disabled = false;
+                    btn.innerHTML = actionType==='estimate'?'儲存估價配料':'確認無誤，執行扣料'; btn.disabled = false;
                 }
-            }).withFailureHandler(err => { alert('系統異常：'+err); btn.innerHTML = '送出'; btn.disabled = false; })
+            }).withFailureHandler(err => { alert('系統異常：'+err); btn.innerHTML = actionType==='estimate'?'儲存估價配料':'確認無誤，執行扣料'; btn.disabled = false; })
               .checkAndDeductMaterials(orderId, matArr, (actionType !== 'estimate'), actionType, '', op, estParams);
         }
 
@@ -1527,7 +1534,7 @@
             }
         }
 
-        // ================= OMS 新增智慧過濾表端彈窗 =================
+        // ================= OMS 新增與編輯表單精準修正 =================
         function openModal(rowIndex = -1) {
             editingRowIndex = rowIndex; 
             document.getElementById('modalTitle').innerText = rowIndex !== -1 ? `編輯資料` : `新增資料`;
@@ -1536,40 +1543,50 @@
             const rowData = rowIndex !== -1 ? currentTableData[rowIndex] : {};
 
             let isSysAuth = currentSheet === '權限管理';
-            let viewAuthStr = rowData['可視系統'] || '';
-            let opAuthStr = rowData['可操作系統'] || '';
-            let editAuthStr = rowData['可編輯系統'] || '';
+            let viewAuthStr = rowData['可視系統'] || ''; let opAuthStr = rowData['可操作系統'] || ''; let editAuthStr = rowData['可編輯系統'] || '';
 
             currentHeaders.forEach(header => {
                 if (isSysAuth && (header === '可視系統' || header === '可編輯系統' || header === '可操作系統')) return; 
 
-                // 【修正 1】OMS 新增時，自動隱藏算料與商務金流欄位
+                // 隱藏不需要在新增時看到的欄位 (包含產出量)
                 if (currentSysName === 'OMS' && rowIndex === -1) {
-                    const hideOnAdd = ['單價', '數量', '訂購數量', '總金額', '運費報價', '運費備註', '運費成本', '預估成本'];
+                    const hideOnAdd = ['單價', '數量', '訂購數量', '總金額', '運費報價', '運費備註', '運費成本', '預估成本', '產出量', '配料明細'];
                     if (hideOnAdd.includes(header)) return;
                 }
+                if (header === '配料明細') return; // 隱藏後端資料欄位
 
                 const val = rowData[header] || '';
                 let fieldHTML = `<div><label class="block text-sm font-bold mb-1">${header}</label>`;
 
                 if (header === '顯示財務金額' && currentSheet === '權限管理') {
-                    let isSelected = val === '否' ? '' : 'selected'; let noSelected = val === '否' ? 'selected' : '';
-                    let bgStyle = val === '否' ? '' : 'bg-red-50 text-red-700 font-bold';
-                    fieldHTML += `<select id="input_${header}" onchange="checkFinanceStyle(this)" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide transition-colors ${bgStyle}"><option value="是" ${isSelected}>是 (淡紅色提醒)</option><option value="否" ${noSelected}>否 (無色常態)</option></select>`;
+                    let isSel = val === '否' ? '' : 'selected'; let noSel = val === '否' ? 'selected' : '';
+                    let bg = val === '否' ? '' : 'bg-red-50 text-red-700 font-bold';
+                    fieldHTML += `<select id="input_${header}" onchange="checkFinanceStyle(this)" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide ${bg}"><option value="是" ${isSel}>是 (淡紅色提醒)</option><option value="否" ${noSel}>否 (無色常態)</option></select>`;
                 }
-                else if (header === '總金額' && currentSysName === 'OMS') {
-                    fieldHTML += `<input type="text" id="input_${header}" value="${val}" readonly class="w-full p-2 border bg-gray-100 text-gray-500 cursor-not-allowed font-bold">`;
+                else if (header === '急件') {
+                    fieldHTML += `<select id="input_${header}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide"><option value="否" ${val==='否'?'selected':''}>否</option><option value="是" ${val==='是'?'selected':''}>是</option></select>`;
                 }
-                else if ((header === '數量' || header === '單價' || header === '訂購數量') && currentSysName === 'OMS') {
-                    fieldHTML += `<input type="number" id="input_${header}" value="${val}" oninput="calcOmsTotalSum()" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">`;
+                else if (header === '訂單編號' && rowIndex === -1) {
+                    fieldHTML += `<input type="text" id="input_${header}" readonly class="w-full p-2 border bg-gray-100 text-gray-400 cursor-not-allowed" placeholder="[送出存檔後系統自動生成]">`;
                 }
-                else if (header === '運費備註' && currentSysName === 'OMS') {
-                    fieldHTML += `<input type="text" id="input_${header}" value="${val}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">`;
+                else if (header === '訂單狀態' && rowIndex === -1 && currentSysName === 'OMS') {
+                    fieldHTML += `<input type="text" id="input_${header}" readonly value="估算中" class="w-full p-2 border bg-gray-100 text-gray-500 font-bold cursor-not-allowed">`;
+                }
+                else if ((header === '客戶名稱' || header === '公司名稱' || header === '產品名稱' || header === '供應商') && currentDropdowns[header]) {
+                    let listId = 'dl_' + header; let optHtml = currentDropdowns[header].map(opt => `<option value="${opt}"></option>`).join('');
+                    fieldHTML += `<input list="${listId}" id="input_${header}" value="${val}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide" placeholder="輸入關鍵字搜尋..."><datalist id="${listId}">${optHtml}</datalist>`;
+                }
+                else if (header.includes('日期') || header.includes('交期')) {
+                    let d = val || new Date(new Date().getTime() + 8*60*60*1000).toISOString().split('T')[0];
+                    fieldHTML += `<input type="date" id="input_${header}" value="${d}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">`;
                 }
                 else if (header.includes('內容') || header.includes('備註') || header.includes('細項') || header.includes('簡述')) {
-                    // 【修正 2】限制最大與最小高度，防止整個拉不見
-                    fieldHTML += `<textarea id="input_${header}" rows="3" style="min-height:90px; max-height:280px; resize:vertical;" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">${val}</textarea>`;
+                    fieldHTML += `<textarea id="input_${header}" style="min-height:90px; max-height:280px; resize:vertical;" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">${val}</textarea>`;
                 }
+                else if (currentDropdowns[header] && currentDropdowns[header].length > 0) {
+                    let optHtml = currentDropdowns[header].map(opt => { let oVal = typeof opt === 'object' ? opt.id : opt; let oName = typeof opt === 'object' ? opt.name : opt; return `<option value="${oVal}" ${val===oVal?'selected':''}>${oName}</option>`; }).join('');
+                    fieldHTML += `<select id="input_${header}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide"><option value="">請選擇...</option>${optHtml}</select>`;
+                } 
                 else {
                     fieldHTML += `<input type="text" id="input_${header}" value="${val}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">`;
                 }
@@ -1578,13 +1595,12 @@
 
             if (isSysAuth) {
                 const sysList = ['EIP', 'OMS', 'MES', 'ERP', 'CRM', 'SUP', 'EQS', 'EQM', 'RPT', 'SYS'];
-                const sysMap = { 'EIP':'內部公告', 'CRM':'客戶資料', 'SUP':'供應商資料', 'ERP':'物料庫存', 'OMS':'訂單管理', 'MES':'生產工單', 'EQS':'設備狀態', 'EQM':'設備選單維護', 'RPT':'報表中心', 'SYS':'權限管理' };
-                let gridHtml = `<div class="col-span-1 md:col-span-2 mt-4"><label class="block text-sm font-bold mb-2 text-moSide border-l-4 border-moSide pl-2">公司系統權限矩陣設定</label><div class="overflow-x-auto border border-moBorder rounded-lg shadow-sm"><table class="w-full text-center text-sm border-collapse bg-white"><thead class="bg-gray-100 text-moSide"><tr><th class="p-2 border-b border-r border-moBorder w-1/4 text-left pl-4">系統模組功能</th><th class="p-2 border-b border-r border-moBorder w-1/4">可視</th><th class="p-2 border-b border-r border-moBorder w-1/4 text-blue-600">操作</th><th class="p-2 border-b border-moBorder w-1/4 text-red-600">編輯</th></tr></thead><tbody class="divide-y divide-gray-200">`;
+                let gridHtml = `<div class="col-span-1 md:col-span-2 mt-4"><label class="block text-sm font-bold mb-2 text-moSide">權限矩陣</label><table class="w-full text-center text-sm border bg-white"><thead><tr class="bg-gray-100 text-moSide"><th class="p-2 border">系統</th><th class="p-2 border">可視</th><th class="p-2 border text-blue-600">操作</th><th class="p-2 border text-red-600">編輯</th></tr></thead><tbody>`;
                 sysList.forEach(sys => {
-                    let hasView = viewAuthStr.split(',').map(s=>s.trim()).includes(sys) ? 'checked' : ''; let hasOp = opAuthStr.split(',').map(s=>s.trim()).includes(sys) ? 'checked' : ''; let hasEdit = editAuthStr.split(',').map(s=>s.trim()).includes(sys) ? 'checked' : '';
-                    gridHtml += `<tr class="hover:bg-gray-50 transition-colors"><td class="p-2 border-r border-gray-200 font-bold text-gray-700 text-left pl-4">${sys}</td><td class="p-2 border-r border-gray-200"><input type="checkbox" class="auth-view" value="${sys}" ${hasView} onchange="syncAuth(this, 'view')"></td><td class="p-2 border-r border-gray-200"><input type="checkbox" class="auth-op" value="${sys}" ${hasOp} onchange="syncAuth(this, 'op')"></td><td class="p-2"><input type="checkbox" class="auth-edit" value="${sys}" ${hasEdit} onchange="syncAuth(this, 'edit')"></td></tr>`;
+                    let hasView = viewAuthStr.includes(sys) ? 'checked' : ''; let hasOp = opAuthStr.includes(sys) ? 'checked' : ''; let hasEdit = editAuthStr.includes(sys) ? 'checked' : '';
+                    gridHtml += `<tr><td class="p-2 border font-bold text-gray-700">${sys}</td><td class="p-2 border"><input type="checkbox" class="auth-view" value="${sys}" ${hasView} onchange="syncAuth(this, 'view')"></td><td class="p-2 border"><input type="checkbox" class="auth-op" value="${sys}" ${hasOp} onchange="syncAuth(this, 'op')"></td><td class="p-2 border"><input type="checkbox" class="auth-edit" value="${sys}" ${hasEdit} onchange="syncAuth(this, 'edit')"></td></tr>`;
                 });
-                gridHtml += `</tbody></table></div></div>`; formGrid.innerHTML += gridHtml;
+                gridHtml += `</tbody></table></div>`; formGrid.innerHTML += gridHtml;
             }
             document.getElementById('formModal').classList.remove('hidden');
         }
@@ -1597,13 +1613,8 @@
             if(totalInput) totalInput.value = qty * price;
         }
 
-        // 【新增 7】權限變更淡紅色提醒腳本
         function checkFinanceStyle(selectEl) {
-            if(selectEl.value === '是') {
-                selectEl.className = "w-full p-2 border rounded focus:ring-1 focus:ring-moSide transition-colors bg-red-50 text-red-700 font-bold";
-            } else {
-                selectEl.className = "w-full p-2 border rounded focus:ring-1 focus:ring-moSide transition-colors bg-white text-gray-700";
-            }
+            selectEl.className = selectEl.value === '是' ? "w-full p-2 border rounded focus:ring-1 focus:ring-moSide transition-colors bg-red-50 text-red-700 font-bold" : "w-full p-2 border rounded focus:ring-1 focus:ring-moSide transition-colors bg-white text-gray-700";
         }
 
         // ================= 宮格往下相容自動連帶打勾邏輯 =================
