@@ -474,7 +474,10 @@
             }
         }
 
-        // ================= 終極排版優化：按鈕下移固定槽位版 =================
+        // 全域排序狀態暫存
+        let currentSortCol = ''; let currentSortDir = 'asc';
+
+        // ================= 智慧隱藏展開與表頭排序版渲染器 =================
         function renderTable(data, hasOpAuth, hasEditAuth) {
             const container = document.getElementById('tableContainer');
             currentTableData = data || [];
@@ -483,8 +486,14 @@
             if (currentHeaders.length > 0) {
                 let displayHeaders = (currentSheet === '權限管理' || currentSysName === 'SYS') ? currentHeaders.filter(h => h !== '可視系統' && h !== '可操作系統' && h !== '可編輯系統') : currentHeaders;
 
-                // 表頭不保留操作欄，讓畫面無限寬敞
-                displayHeaders.forEach(h => tableHTML += `<th class="p-3 font-semibold text-sm tracking-wider">${h}</th>`);
+                // 最前面加一欄放置展開圖示
+                tableHTML += `<th class="p-3 w-10 text-center select-none"></th>`;
+                
+                // 表頭具備點擊排序功能
+                displayHeaders.forEach(h => {
+                    let arrow = currentSortCol === h ? (currentSortDir === 'asc' ? ' ▲' : ' ▼') : ' ↕';
+                    tableHTML += `<th onclick="sortTableByHeader('${h}')" class="p-3 font-semibold text-sm tracking-wider cursor-pointer hover:bg-gray-200 select-none transition-colors">${h}<span class="text-xs text-gray-400">${arrow}</span></th>`;
+                });
                 tableHTML += `</tr></thead><tbody class="divide-y text-sm">`;
 
                 if (currentTableData.length === 0) {
@@ -502,10 +511,12 @@
                             reps.forEach(r => { isRestocking = true; restockQty += (parseFloat(r.reqQty) || 0) - (parseFloat(r.inQty) || 0); });
                         }
 
-                        // 1. 渲染主要數據列
-                        tableHTML += `<tr class="${bgClass} hover:bg-gray-100 transition-colors erp-row" data-index="${index}" data-low="${isLowStock}" data-res="${isRestocking}">`;
-                        let detailsHTML = '';
+                        tableHTML += `<tr class="${bgClass} hover:bg-gray-50 transition-colors erp-row">`;
                         
+                        // 側邊小箭頭控制鈕
+                        tableHTML += `<td onclick="toggleRowButtons(${index}, this)" class="p-3 text-center cursor-pointer text-moSide font-bold text-sm select-none hover:text-black">▶</td>`;
+                        
+                        let detailsHTML = '';
                         displayHeaders.forEach(key => {
                             let val = row[key] || '';
                             let isFinanceField = key.includes('成本') || key.includes('報價') || key.includes('單價') || key.includes('售價') || key.includes('金額');
@@ -516,7 +527,7 @@
                                 if(key === '急件' && val === '是') {
                                     val = `<span class="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold animate-pulse shadow-sm">急件</span>`;
                                 }
-                                else if(key.includes('狀態')) {
+                                else if(key.includes('狀態') || key === '當前狀態' || key === '工單狀態') {
                                     let badgeClass = 'status-gray'; let pulseClass = '';  
                                     if(val === '原料不足' || val === '報修中' || val === '待修中' || val === '掛修') badgeClass = 'status-red';
                                     else if(val === '待排程') badgeClass = 'status-green';
@@ -524,6 +535,10 @@
                                     else if(val === '生產中') { badgeClass = 'status-blue'; pulseClass = ' animate-pulse shadow-sm'; }
                                     else if(val === '已接單') { badgeClass = 'status-green'; pulseClass = ' animate-pulse shadow-sm'; }
                                     else if(val === '無排單') badgeClass = 'status-gray';
+                                    // 升級項目：製作完成、已完工、已出貨換上精緻淺綠色調
+                                    else if(val === '製作完成' || val === '已完工' || val === '已出貨') {
+                                        badgeClass = 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+                                    }
                                     val = `<span class="status-badge ${badgeClass}${pulseClass}">${val}</span>`;
                                 }
                                 else if(currentSysName === 'ERP' && key === '目前庫存') {
@@ -535,13 +550,6 @@
                                     if (isRestocking && restockQty > 0) { displayVal += `<span class="ml-2 bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-yellow-300 shadow-sm whitespace-nowrap">⏳補貨中: ${restockQty}</span>`; }
                                     val = displayVal;
                                 }
-                                else if(currentSysName === 'MES' && key === '完成日期' && val) {
-                                    let d = new Date(val); d.setHours(0,0,0,0); let diffDays = (d - twToday) / (1000 * 60 * 60 * 24);
-                                    if (!isNaN(diffDays)) {
-                                        if (diffDays < 0) val = `<span class="text-red-600 font-bold">${val}</span>`;
-                                        else if (diffDays <= 3) val = `<span class="text-yellow-600 font-bold">${val}</span>`;
-                                    }
-                                }
                             }
                             
                             if (key.includes('備註') || key.includes('細項') || key.includes('簡述') || key.includes('報修內容') || key === '內容') {
@@ -552,7 +560,6 @@
                         });
                         tableHTML += `</tr>`;
 
-                        // 【修復核心】從背景快取重建 ERP 的展開明細資料，確保展開鈕不漏抓
                         if (currentSysName === 'ERP') {
                             let reps = currentReplenish.filter(l => l.matId === row['物料編號']);
                             if(reps.length > 0) {
@@ -561,7 +568,7 @@
                                     let rHist = currentRestocks.filter(rl => rl.repId === l.repId); let vShipIds = rHist.map(rl => rl.vendorShipId).filter(v=>v).join(', '); let lastInTime = rHist.length > 0 ? rHist[rHist.length - 1].time : '-';
                                     return `<tr><td class="px-2 py-1 font-bold">${l.repId}</td><td class="px-2 py-1">${l.time}</td><td class="px-2 py-1">${l.reqQty}</td><td class="px-2 py-1 text-green-600">${l.inQty}</td><td class="px-2 py-1">${l.supplier}</td><td class="px-2 py-1 text-blue-600">${vShipIds}</td><td class="px-2 py-1 text-gray-500">${lastInTime}</td><td class="px-2 py-1 text-center">${restockBtn}</td></tr>`;
                                 }).join('');
-                                detailsHTML += `<strong class="text-moSide">補貨申請追蹤:</strong><table class="mt-1 mb-3 w-full text-xs text-left border-collapse border border-yellow-200"><thead class="bg-yellow-50"><tr><th class="px-2 py-1 border border-yellow-200">補貨單號</th><th class="px-2 py-1 border border-yellow-200">申請時間</th><th class="px-2 py-1 border border-yellow-200">申請數</th><th class="px-2 py-1 border border-yellow-200">已進數量</th><th class="px-2 py-1 border border-yellow-200">供應商</th><th class="px-2 py-1 border border-yellow-200">廠商出貨單號</th><th class="px-2 py-1 border border-yellow-200">最後進貨時間</th><th class="px-2 py-1 border border-yellow-200 text-center">操作</th></tr></thead><tbody>${rRows}</tbody></table>`;
+                                detailsHTML += `<strong class="text-moSide">補貨申請追蹤:</strong><table class="w-full text-xs text-left border-collapse border border-yellow-200 mt-1 mb-2"><thead><tr class="bg-yellow-50"><th class="p-1 border">單號</th><th class="p-1 border">時間</th><th class="p-1 border">需求</th><th class="p-1 border">已到</th><th class="p-1 border">廠商</th><th class="p-1 border">出貨單</th><th class="p-1 border">最後進貨時間</th><th class="p-1 border">操作</th></tr></thead><tbody>${rRows}</tbody></table>`;
                             }
                         }
                         if (currentSysName === 'OMS') {
@@ -571,23 +578,12 @@
                                 let wRows = orderWos.map(w => `<tr><td class="px-2 py-1 font-bold">${w['工單編號']}</td><td class="px-2 py-1">${w['作業機台']}</td><td class="px-2 py-1">${w['員工姓名']}</td><td class="px-2 py-1">${w['完成日期']}</td><td class="px-2 py-1">${w['工單狀態']}</td><td class="px-2 py-1">${w['產出量']||'-'}</td><td class="px-2 py-1 text-red-500">${w['停工原因']||''}</td></tr>`).join('');
                                 detailsHTML += `<strong class="text-moSide">生產工單明細:</strong><table class="mt-1 w-full text-xs text-left border-collapse border border-blue-200 mb-3"><thead class="bg-blue-50"><tr><th class="px-2 py-1 border border-blue-200">工單編號</th><th class="px-2 py-1 border border-blue-200">機台</th><th class="px-2 py-1 border border-blue-200">員工</th><th class="px-2 py-1 border border-blue-200">完成日期</th><th class="px-2 py-1 border border-blue-200">狀態</th><th class="px-2 py-1 border border-blue-200">產出量</th><th class="px-2 py-1 border border-blue-200">停工原因</th></tr></thead><tbody>${wRows}</tbody></table>`;
                             }
-                            let orderMats = currentDeductLogs.filter(l => l.orderId === orderId);
-                            if(orderMats.length > 0) {
-                                let matMap = {}; orderMats.forEach(m => { matMap[m.matId] = (matMap[m.matId]||0) + parseFloat(m.qty); });
-                                let mRows = Object.keys(matMap).map(mId => {
-                                    let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === mId);
-                                    let mName = matObj ? matObj.name.replace(mId+' - ', '') : '';
-                                    return `<tr><td class="px-2 py-1 font-bold text-gray-700">${mId}</td><td class="px-2 py-1 text-gray-600">${mName}</td><td class="px-2 py-1 text-red-600 font-bold">${matMap[mId]}</td></tr>`;
-                                }).join('');
-                                detailsHTML += `<strong class="text-moSide">領料使用明細:</strong><table class="mt-1 w-full text-xs text-left border-collapse border border-orange-200 mb-3"><thead class="bg-orange-50"><tr><th class="px-2 py-1 border border-orange-200">物料編號</th><th class="px-2 py-1 border border-orange-200">品名與規格</th><th class="px-2 py-1 border border-orange-200">總領用數</th></tr></thead><tbody>${mRows}</tbody></table>`;
-                            }
                         }
 
-                        // 2. 獨立生成下方「固定定位、不自動靠齊」的操作按鈕長條列
-                        const colSpan = displayHeaders.length;
-                        tableHTML += `<tr class="bg-gray-50 border-b border-gray-200"><td colspan="${colSpan}" class="p-2 pl-4"><div class="flex flex-wrap items-center gap-4 text-xs">`;
+                        // 下方按鈕定位長條列 (預設隱藏 hidden)
+                        const totalColSpan = displayHeaders.length + 1;
+                        tableHTML += `<tr id="btn_row_${index}" class="hidden bg-gray-50 border-b border-gray-200"><td colspan="${totalColSpan}" class="p-2 pl-12"><div class="flex flex-wrap items-center gap-4 text-xs">`;
                         
-                        // 定義 4 個絕對固定不位移的按鈕槽位 (Slot)
                         let btnSlot1 = `<div class="w-20 text-gray-300">─</div>`;
                         let btnSlot2 = `<div class="w-20 text-gray-300">─</div>`;
                         let btnSlot3 = `<div class="w-20 text-gray-300">─</div>`;
@@ -596,39 +592,44 @@
                         if (hasOpAuth) {
                             if (currentSysName === 'OMS') {
                                 const status = row['訂單狀態']; const oId = row['訂單編號'];
-                                btnSlot1 = `<button onclick="cloneOrder(${index})" class="w-20 bg-gray-800 text-white py-1 rounded hover:bg-black shadow-sm font-bold">📋 複製</button>`;
+                                btnSlot1 = `<button onclick="cloneOrder(${index})" class="w-20 bg-gray-800 text-white py-1 rounded hover:bg-black font-bold">📋 複製</button>`;
                                 if (userShowFinance) {
-                                    btnSlot2 = `<button onclick="printQuotation(${index})" class="w-20 bg-blue-500 text-white py-1 rounded hover:bg-blue-600 shadow-sm font-bold">📄 估價單</button>`;
-                                    btnSlot3 = `<button onclick="printMarginReport(${index})" class="w-20 bg-purple-600 text-white py-1 rounded hover:bg-purple-700 shadow-sm font-bold">📈 毛利</button>`;
+                                    btnSlot2 = `<button onclick="printQuotation(${index})" class="w-20 bg-blue-500 text-white py-1 rounded hover:bg-blue-600 font-bold">📄 估價單</button>`;
+                                    btnSlot3 = `<button onclick="printMarginReport(${index})" class="w-20 bg-purple-600 text-white py-1 rounded hover:bg-purple-700 font-bold">📈 毛利</button>`;
                                 }
-                                if (status === '備料中' || status === '原料不足') btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded hover:bg-yellow-600 shadow-sm font-bold">📦 扣料</button>`;
-                                else if (status === '待排程') btnSlot4 = `<button onclick="openWoModal('${oId}', '${encodeURIComponent(row['產品名稱']||'')}')" class="w-20 bg-green-600 text-white py-1 rounded hover:bg-green-700 shadow-sm font-bold">📅 排程</button>`;
-                                else if (status === '製作完成') btnSlot4 = `<button onclick="openMatModal('${oId}', 'rework')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 shadow-sm font-bold">🔄 重工</button>`;
-                                else btnSlot4 = `<button onclick="openMatModal('${oId}', 'addon')" class="w-20 bg-indigo-500 text-white py-1 rounded hover:bg-indigo-600 shadow-sm font-bold">➕ 追加</button>`;
+                                if (status === '備料中' || status === '原料不足') btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded hover:bg-yellow-600 font-bold">📦 扣料</button>`;
+                                else if (status === '待排程') btnSlot4 = `<button onclick="openWoModal('${oId}', '${encodeURIComponent(row['產品名稱']||'')}')" class="w-20 bg-green-600 text-white py-1 rounded hover:bg-green-700 font-bold">📅 排程</button>`;
+                                else if (status === '製作完成') btnSlot4 = `<button onclick="openMatModal('${oId}', 'rework')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold">🔄 重工</button>`;
+                                else btnSlot4 = `<button onclick="openMatModal('${oId}', 'addon')" class="w-20 bg-indigo-500 text-white py-1 rounded hover:bg-indigo-600 font-bold">➕ 追加</button>`;
                             } 
                             else if (currentSysName === 'MES') {
                                 const status = row['工單狀態']; const mac = row['作業機台']; const woId = row['工單編號']; const oId = row['關聯訂單'];
                                 if (status === '生產中') {
-                                    btnSlot1 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 shadow-sm font-bold">🔧 報修</button>`;
-                                    btnSlot2 = `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 shadow-sm font-bold">🛑 停工</button>`;
-                                    btnSlot3 = `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-blue-600 text-white py-1 rounded hover:bg-blue-700 shadow-sm font-bold">🏁 完工</button>`;
+                                    btnSlot1 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 font-bold">🔧 報修</button>`;
+                                    btnSlot2 = `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold">🛑 停工</button>`;
+                                    btnSlot3 = `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-blue-600 text-white py-1 rounded hover:bg-blue-700 font-bold">🏁 完工</button>`;
+                                } 
+                                // 升級項目：當工單已完工，解鎖物流出貨按鈕
+                                else if (status === '已完工') {
+                                    btnSlot4 = `<button onclick="openShippingModal('${woId}', '${oId}')" class="w-20 bg-emerald-600 text-white py-1 rounded hover:bg-emerald-700 font-bold shadow animate-pulse">🚚 出貨</button>`;
+                                } else if (status === '已出貨') {
+                                    btnSlot4 = `<span class="text-gray-400 font-bold w-20 text-center">已出貨結案</span>`;
                                 }
                             }
                             else if (currentSysName === 'EQS') {
                                 const status = row['當前狀態']; const mac = row['設備編號'];
-                                btnSlot1 = `<button onclick="openEqsHistory('${mac}')" class="w-20 bg-gray-500 text-white py-1 rounded hover:bg-gray-600 shadow-sm font-bold">📊 紀錄</button>`;
-                                if (status === '報修中' || status === '掛修') btnSlot2 = `<button onclick="finishRepair('${mac}', this)" class="w-20 bg-green-600 text-white py-1 rounded hover:bg-green-700 shadow-sm font-bold">🛠️ 完修</button>`;
+                                btnSlot1 = `<button onclick="openEqsHistory('${mac}')" class="w-20 bg-gray-500 text-white py-1 rounded hover:bg-gray-600 font-bold">📊 紀錄</button>`;
+                                if (status === '報修中' || status === '掛修') btnSlot2 = `<button onclick="finishRepair('${mac}', this)" class="w-20 bg-green-600 text-white py-1 rounded hover:bg-green-700 font-bold">🛠️ 完修</button>`;
                                 else if (status === '生產中' || status === '待機中') {
-                                    btnSlot2 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 shadow-sm font-bold">🔧 報修</button>`;
-                                    btnSlot3 = `<button onclick="openMaintModal('${mac}')" class="w-20 bg-yellow-500 text-white py-1 rounded hover:bg-yellow-600 shadow-sm font-bold">💆 保養</button>`;
+                                    btnSlot2 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 font-bold">🔧 報修</button>`;
+                                    btnSlot3 = `<button onclick="openMaintModal('${mac}')" class="w-20 bg-yellow-500 text-white py-1 rounded hover:bg-yellow-600 font-bold">💆 保養</button>`;
                                 }
                             }
                             else if (currentSysName === 'ERP') {
-                                btnSlot1 = `<button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名與規格'])}', '${row['供應商']||''}')" class="w-25 bg-indigo-500 text-white py-1 px-1 rounded hover:bg-indigo-600 shadow-sm font-bold">🛒 補貨申請</button>`;
+                                btnSlot1 = `<button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名與規格'])}', '${row['供應商']||''}')" class="w-24 bg-indigo-500 text-white py-1 rounded hover:bg-indigo-600 font-bold">🛒 補貨申請</button>`;
                             }
                         }
 
-                        // 組合固定槽位與查看/編輯按鈕
                         tableHTML += `${btnSlot1}${btnSlot2}${btnSlot3}${btnSlot4}`;
                         if (detailsHTML !== '') tableHTML += `<button id="btn_detail_${index}" onclick="toggleDetails('detail_${index}')" class="w-20 bg-gray-100 border border-gray-300 text-gray-600 py-1 rounded hover:bg-gray-200 font-bold ml-auto">查看 ▼</button>`;
                         if (hasEditAuth && currentSysName !== 'EQS') tableHTML += `<button onclick="openModal(${index})" class="w-20 border border-moSide text-moSide py-1 rounded hover:bg-gray-100 font-bold ${detailsHTML === '' ? 'ml-auto' : ''}">📝 編輯</button>`;
@@ -636,20 +637,20 @@
                         tableHTML += `</div></td></tr>`;
 
                         if (detailsHTML !== '') {
-                            tableHTML += `<tr id="detail_${index}" class="hidden bg-gray-50"><td colspan="${colSpan}" class="p-5 text-sm border-l-4 border-moSide shadow-inner">${detailsHTML}</td></tr>`;
+                            tableHTML += `<tr id="detail_${index}" class="hidden bg-gray-50"><td colspan="${totalColSpan}" class="p-5 text-sm border-l-4 border-moSide shadow-inner">${detailsHTML}</td></tr>`;
                         }
                     });
                 }
                 tableHTML += `</tbody></table></div>`;
             } else { tableHTML += `<div class="p-10 text-center text-gray-400 tracking-wider">目前工作表無表頭，請確認有建立欄位。</div>`; }
 
-            // === 【修復核心】分流渲染 EIP 看板，徹底隔開快篩干擾 ===
+            // 保持原本 EIP 獨立區塊，不被干擾
             if (currentSysName === 'EIP') {
                 let eipHtml = `<div class="p-6 bg-white border border-moBorder rounded-lg mt-6 shadow-sm"><div class="flex justify-between items-center mb-6"><h2 class="text-xl font-bold text-moSide border-l-4 border-moSide pl-2">工作交接清單</h2>`;
                 if(hasEditAuth) {
                     eipHtml += `<div class="flex gap-2">`;
-                    eipHtml += `<button onclick="openModal()" class="bg-gray-200 hover:bg-gray-300 transition-colors text-moSide px-4 py-2 rounded text-sm shadow">＋ 內部公告</button>`;
-                    eipHtml += `<button onclick="openHandoverModal()" class="bg-moSide hover:bg-gray-600 transition-colors text-white px-4 py-2 rounded text-sm shadow">＋ 新增交接</button>`;
+                    eipHtml += `<button onclick="openModal()" class="bg-gray-200 hover:bg-gray-300 text-moSide px-4 py-2 rounded text-sm shadow">＋ 內部公告</button>`;
+                    eipHtml += `<button onclick="openHandoverModal()" class="bg-moSide hover:bg-gray-600 text-white px-4 py-2 rounded text-sm shadow">＋ 新增交接</button>`;
                     eipHtml += `</div>`;
                 }
                 eipHtml += `</div><div class="grid grid-cols-1 md:grid-cols-3 gap-4">`;
@@ -659,7 +660,7 @@
                         let bg = 'bg-green-50 border-green-200', textCol = 'text-green-700', badge = '低';
                         if(ho.priority === '高') { bg = 'bg-red-50 border-red-200'; textCol = 'text-red-700'; badge = '高'; }
                         else if(ho.priority === '中') { bg = 'bg-yellow-50 border-yellow-200'; textCol = 'text-yellow-700'; badge = '中'; }
-                        let imgHtml = ho.image ? `<div class="mt-2 text-center"><img src="${ho.image}" class="rounded-md max-h-32 inline-block object-contain border border-gray-200 cursor-pointer shadow-sm hover:opacity-80 transition" onclick="openImageModal(this.src)"></div>` : '';
+                        let imgHtml = ho.image ? `<div class="mt-2 text-center"><img src="${ho.image}" class="rounded-md max-h-32 inline-block object-contain border border-gray-200 cursor-pointer shadow-sm hover:opacity-80" onclick="openImageModal(this.src)"></div>` : '';
                         eipHtml += `<div class="p-4 rounded-lg border ${bg} relative shadow-sm flex flex-col">`;
                         if(hasEditAuth) eipHtml += `<button onclick="doDeleteHandover('${ho.time}', this)" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold text-lg leading-none">&times;</button>`;
                         eipHtml += `<div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white ${ho.priority==='高'?'bg-red-500':(ho.priority==='中'?'bg-yellow-500':'bg-green-500')}">${badge}</span><span class="text-xs text-gray-500">${ho.time}</span></div></div>`;
@@ -669,8 +670,7 @@
                         eipHtml += `<p class="text-xs text-gray-500 mt-3 text-right border-t border-white pt-2">- ${ho.creator}</p></div>`;
                     });
                 }
-                eipHtml += `</div></div>`;
-                tableHTML += eipHtml;
+                eipHtml += `</div></div>`; tableHTML += eipHtml;
             }
 
             if (currentSysName === 'ERP') {
@@ -682,10 +682,9 @@
                         if (remainQty > 0) { let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === rep.matId); let price = matObj ? (parseFloat(matObj.price) || 0) : 0; totalUnreceivedValue += (remainQty * price); }
                     }
                 });
-                
                 let maskStr1 = userShowFinance ? `data-val="${totalInventoryValue}">$ ***` : `><span class="text-sm">🔒 無權限</span>`;
                 let maskStr2 = userShowFinance ? `data-val="${totalUnreceivedValue}">$ ***` : `><span class="text-sm">🔒 無權限</span>`;
-                let btnHtml = userShowFinance ? `<button onclick="toggleErpFinance(this)" class="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-2 px-3 rounded border border-gray-300 shadow-sm transition-colors">👁️ 顯示金額</button>` : '';
+                let btnHtml = userShowFinance ? `<button onclick="toggleErpFinance(this)" class="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-2 px-3 rounded border border-gray-300 shadow-sm">👁️ 顯示金額</button>` : '';
 
                 let financeHtml = `<div class="mb-4 bg-white p-5 rounded-lg border border-moBorder shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div class="flex flex-col md:flex-row gap-6 md:gap-10">
@@ -693,9 +692,9 @@
                         <div class="md:pl-10 md:border-l border-gray-200"><span class="text-xs font-bold text-gray-500 block mb-1">未進貨金額 (補貨中)</span><span class="text-2xl font-bold text-orange-500 erp-finance-val" ${maskStr2}</span></div>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <button onclick="filterErp('all')" class="bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold py-2 px-3 rounded shadow-sm transition-colors">全部顯示</button>
-                        <button onclick="filterErp('low')" class="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 text-xs font-bold py-2 px-3 rounded shadow-sm transition-colors">⚠️ 低庫存</button>
-                        <button onclick="filterErp('restock')" class="bg-yellow-50 text-yellow-700 border border-yellow-200 hover:bg-yellow-100 text-xs font-bold py-2 px-3 rounded shadow-sm transition-colors">⏳ 待進貨</button>
+                        <button onclick="filterErp('all')" class="bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold py-2 px-3 rounded shadow-sm">全部顯示</button>
+                        <button onclick="filterErp('low')" class="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 text-xs font-bold py-2 px-3 rounded shadow-sm">⚠️ 低庫存</button>
+                        <button onclick="filterErp('restock')" class="bg-yellow-50 text-yellow-700 border border-yellow-200 hover:bg-yellow-100 text-xs font-bold py-2 px-3 rounded shadow-sm">⏳ 待進貨</button>
                         ${btnHtml}
                     </div>
                 </div>`;
@@ -703,6 +702,35 @@
             }
 
             container.innerHTML = tableHTML;
+        }
+
+        // 行展縮小工具
+        function toggleRowButtons(idx, el) {
+            let btnRow = document.getElementById('btn_row_' + idx);
+            if(btnRow) {
+                btnRow.classList.toggle('hidden');
+                el.innerText = btnRow.classList.contains('hidden') ? '▶' : '▼';
+            }
+        }
+
+        // 表頭排序小工具
+        function sortTableByHeader(colName) {
+            if (!['OMS', 'MES', 'ERP', 'CRM', 'SUP'].includes(currentSysName)) return;
+            if (currentSortCol === colName) {
+                currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortCol = colName; currentSortDir = 'asc';
+            }
+            currentTableData.sort((a, b) => {
+                let valA = String(a[colName] || '').trim(); let valB = String(b[colName] || '').trim();
+                if(valA === '' || valA === '🔒 無權限') return 1; if(valB === '' || valB === '🔒 無權限') return -1;
+                let cleanA = valA.replace(/[^0-9.-]/g, ''); let cleanB = valB.replace(/[^0-9.-]/g, '');
+                if (cleanA !== '' && cleanB !== '' && !isNaN(cleanA) && !isNaN(cleanB)) {
+                    return currentSortDir === 'asc' ? parseFloat(cleanA) - parseFloat(cleanB) : parseFloat(cleanB) - parseFloat(cleanA);
+                }
+                return currentSortDir === 'asc' ? valA.localeCompare(valB, 'zh-TW') : valB.localeCompare(valA, 'zh-TW');
+            });
+            renderTable(currentTableData, userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName));
         }
 
         function loadReportSystem() {
@@ -1761,15 +1789,42 @@
             document.getElementById('modalTitle').innerText = "複製新增訂單";
         }
 
-        // ================= 列印估價單 (給客戶 - 增強用料明細與權限鎖點) =================
+        // ================= 全新升級：多核心商務智慧對話視窗引擎 =================
+        function showSmartChoice(title, desc, options) {
+            document.getElementById('smartTitle').innerText = title;
+            document.getElementById('smartDesc').innerText = desc;
+            const container = document.getElementById('smartBtnContainer');
+            container.innerHTML = '';
+            
+            options.forEach(opt => {
+                let btn = document.createElement('button');
+                btn.className = opt.class || "px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-xs font-bold shadow-sm transition-colors";
+                btn.innerText = opt.text;
+                btn.onclick = () => {
+                    closeModal('smartChoiceModal');
+                    if(opt.callback) opt.callback();
+                };
+                container.appendChild(btn);
+            });
+            document.getElementById('smartChoiceModal').classList.remove('hidden');
+        }
+
+        // ================= 估價單/毛利：強制融入防護與選單拆分 =================
         function printQuotation(index) {
-            // 【安全卡死第一線】防堵繞過
-            if (!userShowFinance) { alert("🔒 權限不足，無法變更或生成機密財務資料！"); return; }
-            
+            if (!userShowFinance) { alert("🔒 您的權限設定為：否 (禁止出現任何機密財務資料)"); return; }
+            showSmartChoice(
+                "📄 導出客戶估價單",
+                "請選擇此估價單的列印規格：是否需要將「用料耗用與配套耗材清單」附加於單據下方？",
+                [
+                    { text: "📊 包含用料明細表", class: "px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700", callback: () => doExecuteQuotation(index, true) },
+                    { text: "📄 僅列印主單報價", class: "px-4 py-2 bg-gray-600 text-white rounded-lg text-xs font-bold hover:bg-gray-700", callback: () => doExecuteQuotation(index, false) },
+                    { text: "取消", class: "px-4 py-2 border text-gray-500 rounded-lg text-xs font-bold hover:bg-gray-100", callback: null }
+                ]
+            );
+        }
+
+        function doExecuteQuotation(index, includeDetails) {
             let row = currentTableData[index];
-            let includeDetails = confirm("【用料明細確認】\n是否需要在給客戶的估價單中「包含材料與加工用料明細表格」？");
-            
-            // 抓取領料使用明細
             let matHtml = '';
             if (includeDetails) {
                 let orderMats = currentDeductLogs.filter(l => l.orderId === row['訂單編號']);
@@ -1777,200 +1832,133 @@
                     let matMap = {}; orderMats.forEach(m => { matMap[m.matId] = (matMap[m.matId]||0) + parseFloat(m.qty); });
                     let mRows = Object.keys(matMap).map(mId => {
                         let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === mId);
-                        let mName = matObj ? matObj.name.replace(mId+' - ', '') : '配套耗材';
-                        return `<tr><td class="p-2 border border-gray-300 text-xs">${mId}</td><td class="p-2 border border-gray-300 text-xs">${mName}</td><td class="p-2 border border-gray-300 text-xs text-center">${matMap[mId]}</td></tr>`;
+                        return `<tr><td class="p-2 border border-gray-300 text-xs">${mId}</td><td class="p-2 border border-gray-300 text-xs">${matObj ? matObj.name.replace(mId+' - ', '') : '廠內耗材'}</td><td class="p-2 border border-gray-300 text-xs text-center">${matMap[mId]}</td></tr>`;
                     }).join('');
                     matHtml = `<h3 class="font-bold text-xs text-moSide mb-2 mt-6">📦 隨單預計消耗用料清單</h3><table class="w-full text-left border-collapse border border-gray-300 text-xs mb-4"><thead><tr class="bg-gray-50"><th class="p-2 border border-gray-300">物料編號</th><th class="p-2 border border-gray-300">名稱規格</th><th class="p-2 border border-gray-300 text-center">預估用量</th></tr></thead><tbody>${mRows}</tbody></table>`;
                 }
             }
-
-            let html = `
-                <div class="p-8 font-sans bg-white max-w-[210mm] mx-auto text-gray-800">
-                    <h1 class="text-3xl font-bold text-center mb-2 tracking-widest">仕罡印刷</h1>
-                    <h2 class="text-xl text-center mb-8 border-b-2 border-gray-800 pb-2">正式估價單 / Quotation</h2>
-                    <div class="flex justify-between mb-8 text-sm">
-                        <div>
-                            <p class="mb-1"><strong>致：</strong> <span class="text-lg font-bold">${row['客戶名稱']}</span> 先生/女士</p>
-                            <p><strong>日期：</strong> ${new Date().toISOString().split('T')[0]}</p>
-                        </div>
-                        <div class="text-right text-xs text-gray-500">
-                            <p>單號：${row['訂單編號']}</p>
-                        </div>
-                    </div>
-                    <table class="w-full text-left border-collapse border border-gray-800 mb-6 text-sm">
-                        <thead class="bg-gray-100">
-                            <tr><th class="p-2 border border-gray-800">品名與完成尺寸</th><th class="p-2 border border-gray-800 text-center">數量</th><th class="p-2 border border-gray-800 text-right">單價</th><th class="p-2 border border-gray-800 text-right">小計</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="p-3 border border-gray-800 font-bold">${row['產品名稱']}<br><span class="text-xs text-gray-500 font-normal">尺寸：${row['完成尺寸']||'依原稿'}</span></td>
-                                <td class="p-3 border border-gray-800 text-center">${row['數量']}</td>
-                                <td class="p-3 border border-gray-800 text-right">$ ${parseFloat(row['單價']||0).toLocaleString()}</td>
-                                <td class="p-3 border border-gray-800 text-right font-bold">$ ${parseFloat(row['總金額']||0).toLocaleString()}</td>
-                            </tr>
-                            <tr>
-                                <td colspan="3" class="p-2 border border-gray-800 text-right text-xs text-gray-600">專案運費 ${row['運費備註'] ? '('+row['運費備註']+')' : ''}</td>
-                                <td class="p-2 border border-gray-800 text-right">$ ${parseFloat(row['運費報價']||0).toLocaleString()}</td>
-                            </tr>
-                            <tr class="bg-gray-50">
-                                <td colspan="3" class="p-3 border border-gray-800 text-right font-bold text-base">總計報價 (Total)</td>
-                                <td class="p-3 border border-gray-800 text-right font-bold text-xl text-red-700">$ ${(parseFloat(row['總金額']||0) + parseFloat(row['運費報價']||0)).toLocaleString()}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    ${matHtml}
-                    <div class="text-xs text-gray-500 mt-10">
-                        <p class="font-bold mb-1">【訂單細項與備註】</p>
-                        <p class="whitespace-pre-wrap">${row['訂單細項'] || '無'}</p>
-                    </div>
-                </div>`;
-            execHTML2PDF(html, `估價單_${row['客戶名稱']}_${row['訂單編號']}.pdf`);
+            let html = `<div class="p-8 font-sans bg-white max-w-[210mm] mx-auto text-gray-800"><h1 class="text-3xl font-bold text-center mb-2 tracking-widest">仕罡印刷</h1><h2 class="text-xl text-center mb-8 border-b-2 border-gray-800 pb-2">正式估價單 / Quotation</h2><div class="flex justify-between mb-8 text-sm"><div><p class="mb-1"><strong>致：</strong> <span class="text-lg font-bold">${row['客戶名稱']}</span> 御中</p><p><strong>日期：</strong> ${new Date().toISOString().split('T')[0]}</p></div><div class="text-right text-xs text-gray-500"><p>單號：${row['訂單編號']}</p></div></div><table class="w-full text-left border-collapse border border-gray-800 mb-6 text-sm"><thead class="bg-gray-100"><tr><th class="p-2 border border-gray-800">品名與完成尺寸</th><th class="p-2 border border-gray-800 text-center">數量</th><th class="p-2 border border-gray-800 text-right">單價</th><th class="p-2 border border-gray-800 text-right">小計</th></tr></thead><tbody><tr><td class="p-3 border border-gray-800 font-bold">${row['產品名稱']}<br><span class="text-xs text-gray-500 font-normal">尺寸：${row['完成尺寸']||'依原稿'}</span></td><td class="p-3 border border-gray-800 text-center">${row['數量']}</td><td class="p-3 border border-gray-800 text-right">$ ${parseFloat(row['單價']||0).toLocaleString()}</td><td class="p-3 border border-gray-800 text-right font-bold">$ ${parseFloat(row['總金額']||0).toLocaleString()}</td></tr><tr><td colspan="3" class="p-2 border border-gray-800 text-right text-xs text-gray-600">專案運費</td><td class="p-2 border border-gray-800 text-right">$ ${parseFloat(row['運費報價']||0).toLocaleString()}</td></tr><tr class="bg-gray-50"><td colspan="3" class="p-3 border border-gray-800 text-right font-bold text-base">總計報價 (Total)</td><td class="p-3 border border-gray-800 text-right font-bold text-xl text-red-700">$ ${(parseFloat(row['總金額']||0) + parseFloat(row['運費報價']||0)).toLocaleString()}</td></tr></tbody></table>${matHtml}<div class="text-xs text-gray-500 mt-10"><p class="font-bold mb-1">【訂單細項與備註】</p><p class="whitespace-pre-wrap">${row['訂單細項'] || '無'}</p></div></div>`;
+            execHTML2PDF(html, `估價單_${row['訂單編號']}.pdf`);
         }
 
-        // ================= 內部毛利試算表 (增強用料明細與權限鎖點) =================
         function printMarginReport(index) {
-            if (!userShowFinance) { alert("🔒 權限不足，無法變更或生成機密財務資料！"); return; }
-            
-            let row = currentTableData[index];
-            let includeDetails = confirm("【用料成本明細】\n是否需要在毛利分析中「印出每項材料扣料的耗用明細與成本」？");
-            
+            if (!userShowFinance) { alert("🔒 您的權限設定為：否 (禁止出現任何機密財務資料)"); return; }
+            showSmartChoice(
+                "📈 內部毛利分析報告",
+                "請選擇利潤報告的解析深度：是否展開列印「每項材料扣料的精確拆分成本表」？",
+                [
+                    { text: "📊 展開完整物料成本", class: "px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700", callback: () => doExecuteMargin(index, true) },
+                    { text: "📈 僅列印總額毛利分析", class: "px-4 py-2 bg-gray-600 text-white rounded-lg text-xs font-bold hover:bg-gray-700", callback: () => doExecuteMargin(index, false) },
+                    { text: "取消", class: "px-4 py-2 border text-gray-500 rounded-lg text-xs font-bold hover:bg-gray-100", callback: null }
+                ]
+            );
+        }
+
+        function doExecuteMargin(index, includeDetails) {
+            let row = currentTableData[index]; let rev = parseFloat(row['總金額']||0) + parseFloat(row['運費報價']||0); let cost = parseFloat(row['預估成本']||0) + parseFloat(row['運費成本']||0); let profit = rev - cost; let margin = rev > 0 ? ((profit / rev) * 100).toFixed(1) : 0;
             let matHtml = '';
             if (includeDetails) {
                 let orderMats = currentDeductLogs.filter(l => l.orderId === row['訂單編號']);
                 if (orderMats.length > 0) {
                     let matMap = {}; orderMats.forEach(m => { matMap[m.matId] = (matMap[m.matId]||0) + parseFloat(m.qty); });
                     let mRows = Object.keys(matMap).map(mId => {
-                        let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === mId);
-                        let mName = matObj ? matObj.name.replace(mId+' - ', '') : '廠內耗材';
-                        let uPrice = matObj ? parseFloat(matObj.price)||0 : 0;
-                        return `<tr><td class="p-2 border border-gray-300">${mId}</td><td class="p-2 border border-gray-300 text-xs">${mName}</td><td class="p-2 border border-gray-300 text-center">${matMap[mId]}</td><td class="p-2 border border-gray-300 text-right">$ ${uPrice}</td><td class="p-2 border border-gray-300 text-right font-bold">$ ${(matMap[mId]*uPrice).toLocaleString()}</td></tr>`;
+                        let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === mId); let uPrice = matObj ? parseFloat(matObj.price)||0 : 0;
+                        return `<tr><td class="p-2 border border-gray-300">${mId}</td><td class="p-2 border border-gray-300 text-xs">${matObj?matObj.name.replace(mId+' - ', ''):'廠內耗材'}</td><td class="p-2 border border-gray-300 text-center">${matMap[mId]}</td><td class="p-2 border border-gray-300 text-right">$ ${uPrice}</td><td class="p-2 border border-gray-300 text-right font-bold">$ ${(matMap[mId]*uPrice).toLocaleString()}</td></tr>`;
                     }).join('');
                     matHtml = `<h3 class="font-bold text-sm text-moSide mb-2 mt-6">📋 材料扣料明細成本分攤</h3><table class="w-full text-left border-collapse border border-gray-300 text-xs mb-4"><thead><tr class="bg-gray-100"><th class="p-2 border border-gray-300">物料代號</th><th class="p-2 border border-gray-300">品名規格</th><th class="p-2 border border-gray-300 text-center">領用數量</th><th class="p-2 border border-gray-300 text-right">材料單價</th><th class="p-2 border border-gray-300 text-right">成本小計</th></tr></thead><tbody>${mRows}</tbody></table>`;
                 }
             }
-
-            let rev = parseFloat(row['總金額']||0) + parseFloat(row['運費報價']||0);
-            let cost = parseFloat(row['預估成本']||0) + parseFloat(row['運費成本']||0);
-            let profit = rev - cost;
-            let margin = rev > 0 ? ((profit / rev) * 100).toFixed(1) : 0;
-            
-            let html = `
-                <div class="p-8 font-sans bg-white max-w-[210mm] mx-auto text-gray-800">
-                    <h2 class="text-2xl font-bold text-center mb-6 text-moSide">📈 專案毛利率試算報告</h2>
-                    <table class="w-full text-left border-collapse border border-gray-300 text-sm mb-6 shadow-sm">
-                        <tbody>
-                            <tr><th class="p-2 border border-gray-300 bg-gray-100 w-32">單號</th><td class="p-2 border border-gray-300">${row['訂單編號']}</td><th class="p-2 border border-gray-300 bg-gray-100 w-32">客戶</th><td class="p-2 border border-gray-300 font-bold">${row['客戶名稱']}</td></tr>
-                            <tr><th class="p-2 border border-gray-300 bg-gray-100">產品名稱</th><td colspan="3" class="p-2 border border-gray-300">${row['產品名稱']} (尺寸: ${row['完成尺寸']||'-'})</td></tr>
-                        </tbody>
-                    </table>
-                    
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div class="border border-green-200 rounded p-4 bg-green-50">
-                            <h3 class="font-bold text-green-800 mb-2 border-b border-green-200 pb-1">總收入 (Revenue)</h3>
-                            <p class="flex justify-between"><span>產品售價：</span> <span>$ ${parseFloat(row['總金額']||0).toLocaleString()}</span></p>
-                            <p class="flex justify-between"><span>運費報價：</span> <span>$ ${parseFloat(row['運費報價']||0).toLocaleString()}</span></p>
-                            <p class="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-green-200"><span>合計：</span> <span>$ ${rev.toLocaleString()}</span></p>
-                        </div>
-                        <div class="border border-red-200 rounded p-4 bg-red-50">
-                            <h3 class="font-bold text-red-800 mb-2 border-b border-red-200 pb-1">總成本 (Cost)</h3>
-                            <p class="flex justify-between"><span>材料估算：</span> <span>$ ${parseFloat(row['預估成本']||0).toLocaleString()}</span></p>
-                            <p class="flex justify-between"><span>運費成本：</span> <span>$ ${parseFloat(row['運費成本']||0).toLocaleString()}</span></p>
-                            <p class="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-red-200"><span>合計：</span> <span>$ ${cost.toLocaleString()}</span></p>
-                        </div>
-                    </div>
-                    ${matHtml}
-                    <div class="p-6 bg-moSide text-white rounded text-center shadow-md">
-                        <h3 class="text-lg mb-2">預估專案毛利 (Gross Profit)</h3>
-                        <p class="text-4xl font-bold mb-2">$ ${profit.toLocaleString()}</p>
-                        <p class="text-xl">預估毛利率：<span class="${margin < 30 ? 'text-red-300' : 'text-green-300'} font-bold">${margin}%</span></p>
-                    </div>
-                </div>`;
+            let html = `<div class="p-8 font-sans bg-white max-w-[210mm] mx-auto text-gray-800"><h2 class="text-2xl font-bold text-center mb-6 text-moSide">📈 專案毛利率試算報告</h2><table class="w-full text-left border-collapse border border-gray-300 text-sm mb-6 shadow-sm"><tbody><tr><th class="p-2 border border-gray-300 bg-gray-100 w-32">單號</th><td class="p-2 border border-gray-300">${row['訂單編號']}</td><th class="p-2 border border-gray-300 bg-gray-100 w-32">客戶</th><td class="p-2 border border-gray-300 font-bold">${row['客戶名稱']}</td></tr><tr><th class="p-2 border border-gray-300 bg-gray-100">產品名稱</th><td colspan="3" class="p-2 border border-gray-300">${row['產品名稱']}</td></tr></tbody></table><div class="grid grid-cols-2 gap-4 mb-6"><div class="border border-green-200 rounded p-4 bg-green-50"><h3 class="font-bold text-green-800 mb-2 border-b border-green-200 pb-1">總收入</h3><p class="flex justify-between"><span>產品售價：</span> <span>$ ${parseFloat(row['總金額']||0).toLocaleString()}</span></p><p class="flex justify-between"><span>運費報價：</span> <span>$ ${parseFloat(row['運費報價']||0).toLocaleString()}</span></p><p class="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-green-200"><span>合計：</span> <span>$ ${rev.toLocaleString()}</span></p></div><div class="border border-red-200 rounded p-4 bg-red-50"><h3 class="font-bold text-red-800 mb-2 border-b border-red-200 pb-1">總成本</h3><p class="flex justify-between"><span>材料估算：</span> <span>$ ${parseFloat(row['預估成本']||0).toLocaleString()}</span></p><p class="flex justify-between"><span>運費成本：</span> <span>$ ${parseFloat(row['運費成本']||0).toLocaleString()}</span></p><p class="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-red-200"><span>合計：</span> <span>$ ${cost.toLocaleString()}</span></p></div></div>${matHtml}<div class="p-6 bg-moSide text-white rounded text-center shadow-md"><h3 class="text-lg mb-2">預估專案毛利</h3><p class="text-4xl font-bold mb-2">$ ${profit.toLocaleString()}</p><p class="text-xl">預估毛利率：<span class="text-green-300 font-bold">${margin}%</span></p></div></div>`;
             execHTML2PDF(html, `毛利試算_${row['訂單編號']}.pdf`);
         }
 
-        // ================= 攔截 RPT 執行財務財報 =================
+        // ================= RPT：財務計算分流與 CSV 修正攔截點 =================
         const originalRunReport = runReport;
         runReport = function() {
             const target = document.getElementById('rptTargetSheet').value;
-            if (target !== 'FIN') return originalRunReport();
+            if (target !== 'FIN') return originalRunReport(); // 點選其他報表走原流程
+            if (!userShowFinance) { alert("🔒 權限不足，無法變更或生成機密財務資料！"); return; }
             
-            // 財務損益表生成邏輯 (抓取 OMS 進行本機彙整)
-            const start = document.getElementById('rptStartDate').value;
-            const end = document.getElementById('rptEndDate').value;
-            const hr = parseFloat(document.getElementById('finHr').value) || 0;
-            const rent = parseFloat(document.getElementById('finRent').value) || 0;
-            const misc = parseFloat(document.getElementById('finMisc').value) || 0;
-            const taxRate = parseFloat(document.getElementById('finTax').value) || 5;
+            // 升級項目：在進行 P&L 結算前，使用自製選擇器詢問收入範圍
+            showSmartChoice(
+                "💰 損益計算營收設定",
+                "理財稽核提示：此期間的營收利潤，是否需要將「已完工但未出貨 (狀態為製作完成)」的訂單也併入統計結算？",
+                [
+                    { text: "📊 包含已完工未出貨", class: "px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700", callback: () => doCalculateFinance(true) },
+                    { text: "🚚 僅計算已出貨單據", class: "px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700", callback: () => doCalculateFinance(false) },
+                    { text: "取消", class: "px-4 py-2 border text-gray-500 rounded-lg text-xs font-bold hover:bg-gray-100", callback: null }
+                ]
+            );
+        };
 
-            document.getElementById('tableContainer').innerHTML = `<div class="p-20 text-center"><div class="w-10 h-10 border-4 border-moSide border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>計算財務資料中...</div>`;
+        function doCalculateFinance(includeUnshipped) {
+            const start = document.getElementById('rptStartDate').value; const end = document.getElementById('rptEndDate').value;
+            const hr = parseFloat(document.getElementById('finHr').value) || 0; const rent = parseFloat(document.getElementById('finRent').value) || 0;
+            const misc = parseFloat(document.getElementById('finMisc').value) || 0; const taxRate = parseFloat(document.getElementById('finTax').value) || 5;
+
+            document.getElementById('tableContainer').innerHTML = `<div class="p-20 text-center"><div class="w-10 h-10 border-4 border-moSide border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>運算多軌財務數據中...</div>`;
 
             google.script.run.withSuccessHandler(res => {
-                let filtered = res.data;
-                // 過濾時間與狀態 (只算已結案/完工的真實收入)
+                let filtered = res.data || [];
                 filtered = filtered.filter(r => {
                     let stat = r['訂單狀態'];
-                    if (stat !== '製作完成' && stat !== '已結案' && stat !== '已出貨') return false;
+                    // 根據使用者剛才點選的智慧選項，決定過濾邊界
+                    if (includeUnshipped) {
+                        if (stat !== '製作完成' && stat !== '已結案' && stat !== '已出貨') return false;
+                    } else {
+                        if (stat !== '已結案' && stat !== '已出貨') return false;
+                    }
                     let dStr = r['建單日期'] || r['訂單日期'];
-                    if(start && dStr < start) return false;
-                    if(end && dStr > end) return false;
+                    if(start && dStr < start) return false; if(end && dStr > end) return false;
                     return true;
                 });
 
-                let totalRev = 0; let totalCost = 0;
-                let trHtml = '';
+                let totalRev = 0; let totalCost = 0; let trHtml = '';
+                // 修正項目：鎖定明細陣列，供獨立 CSV 高速導出，徹底斷絕與機台資料錯位的 Bug
+                currentFinanceData = []; 
+
                 filtered.forEach(r => {
                     let rev = parseFloat(r['總金額']||0) + parseFloat(r['運費報價']||0);
                     let cost = parseFloat(r['預估成本']||0) + parseFloat(r['運費成本']||0);
-                    let profit = rev - cost;
-                    totalRev += rev; totalCost += cost;
+                    let profit = rev - cost; totalRev += rev; totalCost += cost;
+                    
+                    currentFinanceData.push({ date: r['建單日期'], cust: r['客戶名稱'], prod: r['產品名稱'], r: rev, c: cost, p: profit });
                     trHtml += `<tr class="hover:bg-gray-100 border-b"><td class="p-2">${r['建單日期']}</td><td class="p-2 font-bold">${r['客戶名稱']}</td><td class="p-2 truncate max-w-[150px]">${r['產品名稱']}</td><td class="p-2 text-right">$ ${rev.toLocaleString()}</td><td class="p-2 text-right text-red-600">$ ${cost.toLocaleString()}</td><td class="p-2 text-right font-bold text-green-600">$ ${profit.toLocaleString()}</td></tr>`;
                 });
 
-                let grossProfit = totalRev - totalCost;
-                let grossMargin = totalRev > 0 ? ((grossProfit / totalRev) * 100).toFixed(1) : 0;
-                let totalExpenses = hr + rent + misc;
-                let preTax = grossProfit - totalExpenses;
-                let tax = preTax > 0 ? preTax * (taxRate / 100) : 0;
-                let netProfit = preTax - tax;
+                let grossProfit = totalRev - totalCost; let grossMargin = totalRev > 0 ? ((grossProfit / totalRev) * 100).toFixed(1) : 0;
+                let totalExpenses = hr + rent + misc; let preTax = grossProfit - totalExpenses;
+                let tax = preTax > 0 ? preTax * (taxRate / 100) : 0; let netProfit = preTax - tax;
 
-                let html = `
-                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h2 class="text-xl font-bold text-moSide mb-6 border-l-4 border-moSide pl-2">區間財務損益分析 (P&L)</h2>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <div class="border border-gray-200 rounded p-4 bg-gray-50 text-center shadow-inner">
-                            <p class="text-sm font-bold text-gray-500 mb-1">營業總收入 (未稅)</p>
-                            <p class="text-3xl font-bold text-blue-700">$ ${totalRev.toLocaleString()}</p>
-                        </div>
-                        <div class="border border-gray-200 rounded p-4 bg-gray-50 text-center shadow-inner">
-                            <p class="text-sm font-bold text-gray-500 mb-1">營業總成本 (材料+運費)</p>
-                            <p class="text-3xl font-bold text-red-600">$ ${totalCost.toLocaleString()}</p>
-                        </div>
-                        <div class="border border-green-200 rounded p-4 bg-green-50 text-center shadow-inner">
-                            <p class="text-sm font-bold text-green-700 mb-1">營業毛利 (Gross Profit)</p>
-                            <p class="text-3xl font-bold text-green-700">$ ${grossProfit.toLocaleString()}</p>
-                            <p class="text-xs mt-1 text-green-800">毛利率: ${grossMargin}%</p>
-                        </div>
-                    </div>
+                // 將統計面板總額數據掛上全域變數，CSV 生成時直接抓取
+                finSummaryCache = { rev: totalRev, cost: totalCost, gp: grossProfit, margin: grossMargin, exp: totalExpenses, pretax: preTax, tax: tax, net: netProfit };
 
-                    <div class="bg-gray-800 text-white rounded-lg p-6 mb-8 shadow-md">
-                        <h3 class="font-bold text-lg mb-4 border-b border-gray-600 pb-2">淨利結算 (Net Profit)</h3>
-                        <div class="flex justify-between mb-2"><span class="text-gray-400">營業毛利：</span> <span>$ ${grossProfit.toLocaleString()}</span></div>
-                        <div class="flex justify-between mb-2"><span class="text-gray-400">扣除常態費用 (人事/租水電/雜支)：</span> <span class="text-red-400">- $ ${totalExpenses.toLocaleString()}</span></div>
-                        <div class="flex justify-between font-bold text-lg mb-2 pt-2 border-t border-gray-600"><span class="text-yellow-400">稅前淨利 (Pre-tax)：</span> <span class="text-yellow-400">$ ${preTax.toLocaleString()}</span></div>
-                        <div class="flex justify-between mb-2"><span class="text-gray-400">預估營業稅額 (${taxRate}%)：</span> <span class="text-red-400">- $ ${tax.toLocaleString()}</span></div>
-                        <div class="flex justify-between font-bold text-2xl mt-4 pt-4 border-t border-gray-600 text-green-400"><span>稅後淨利 (Post-tax)：</span> <span>$ ${netProfit.toLocaleString()}</span></div>
-                    </div>
-
-                    <h3 class="font-bold text-moSide mb-3 border-l-4 border-moSide pl-2">區間內完工訂單明細</h3>
-                    <div class="max-h-96 overflow-y-auto border border-gray-200 rounded">
-                        <table class="w-full text-left text-sm"><thead class="bg-gray-100 sticky top-0"><tr><th class="p-2">建單日</th><th class="p-2">客戶</th><th class="p-2">品名</th><th class="p-2 text-right">收入</th><th class="p-2 text-right">成本</th><th class="p-2 text-right">毛利</th></tr></thead>
-                        <tbody>${trHtml || '<tr><td colspan="6" class="text-center p-4 text-gray-400">此區間無完工訂單</td></tr>'}</tbody></table>
-                    </div>
-                </div>`;
+                let html = `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200"><h2 class="text-xl font-bold text-moSide mb-6 border-l-4 border-moSide pl-2">區間財務損益分析報表 (P&L) ${includeUnshipped?'[含未出貨]':'[僅計已出貨]'}</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="border border-gray-200 rounded p-4 bg-gray-50 text-center shadow-inner"><p class="text-sm font-bold text-gray-500 mb-1">營業總收入 (未稅)</p><p class="text-3xl font-bold text-blue-700">$ ${totalRev.toLocaleString()}</p></div><div class="border border-gray-200 rounded p-4 bg-gray-50 text-center shadow-inner"><p class="text-sm font-bold text-gray-500 mb-1">營業總成本 (材料+運費)</p><p class="text-3xl font-bold text-red-600">$ ${totalCost.toLocaleString()}</p></div><div class="border border-green-200 rounded p-4 bg-green-50 text-center shadow-inner"><p class="text-sm font-bold text-green-700 mb-1">營業毛利 (Gross Profit)</p><p class="text-3xl font-bold text-green-700">$ ${grossProfit.toLocaleString()}</p><p class="text-xs mt-1 text-green-800">毛利率: ${grossMargin}%</p></div></div><div class="bg-gray-800 text-white rounded-lg p-6 mb-8 shadow-md"><h3 class="font-bold text-lg mb-4 border-b border-gray-600 pb-2">淨利結算 (Net Profit)</h3><div class="flex justify-between mb-2"><span class="text-gray-400">營業毛利：</span> <span>$ ${grossProfit.toLocaleString()}</span></div><div class="flex justify-between mb-2"><span class="text-gray-400">扣除區間常態費用：</span> <span class="text-red-400">- $ ${totalExpenses.toLocaleString()}</span></div><div class="flex justify-between font-bold text-lg mb-2 pt-2 border-t border-gray-600"><span class="text-yellow-400">稅前淨利 (Pre-tax)：</span> <span class="text-yellow-400">$ ${preTax.toLocaleString()}</span></div><div class="flex justify-between mb-2"><span class="text-gray-400">預估營業所得稅 (${taxRate}%)：</span> <span class="text-red-400">- $ ${tax.toLocaleString()}</span></div><div class="flex justify-between font-bold text-2xl mt-4 pt-4 border-t border-gray-600 text-green-400"><span>稅後淨利 (Post-tax)：</span> <span>$ ${netProfit.toLocaleString()}</span></div></div><h3 class="font-bold text-moSide mb-3 border-l-4 border-moSide pl-2">區間內核算訂單明細</h3><div class="max-h-96 overflow-y-auto border border-gray-200 rounded"><table class="w-full text-left text-sm"><thead class="bg-gray-100 sticky top-0"><tr><th class="p-2">建單日</th><th class="p-2">客戶</th><th class="p-2">品名</th><th class="p-2 text-right">收入</th><th class="p-2 text-right">成本</th><th class="p-2 text-right">毛利</th></tr></thead><tbody>${trHtml || '<tr><td colspan="6" class="text-center p-4 text-gray-400">此區間無符合單據</td></tr>'}</tbody></table></div></div>`;
                 document.getElementById('tableContainer').innerHTML = html;
             }).getReportData('訂單管理');
-        };
+        }
+
+        // ================= 新增項目：出貨單號視窗與送出機制 =================
+        function openShippingModal(woId, orderId) {
+            document.getElementById('shipWoId').value = woId;
+            document.getElementById('shipOrderId').value = orderId;
+            document.getElementById('shipTrackingInput').value = '';
+            document.getElementById('shippingModal').classList.remove('hidden');
+        }
+
+        function submitShipping(btn) {
+            const woId = document.getElementById('shipWoId').value;
+            const oId = document.getElementById('shipOrderId').value;
+            const trackId = document.getElementById('shipTrackingInput').value.trim();
+            const op = document.getElementById('userNameDisplay').innerText;
+            if(!trackId) return alert("請輸入貨運單號！(如為自送請輸入：自送)");
+
+            btn.innerHTML = '<span class="btn-spinner"></span>出貨中'; btn.disabled = true;
+            google.script.run.withSuccessHandler(res => {
+                alert(res.msg); closeModal('shippingModal'); refreshSystem();
+                btn.innerHTML = '確認出貨'; btn.disabled = false;
+            }).shipOrderAndWo(woId, oId, trackId, op);
+        }
         
     </script>
     <div id="changePwdModal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4">
@@ -1990,6 +1978,30 @@
         <div class="relative max-w-4xl max-h-[90vh] bg-white p-2 rounded-xl shadow-2xl flex items-center justify-center" onclick="event.stopPropagation()">
             <button onclick="closeModal('viewImageModal')" class="absolute -top-3 -right-3 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold shadow-md transition-colors z-10">&times;</button>
             <img id="largeImageTarget" class="max-w-full max-h-[85vh] object-contain rounded-lg" src="">
+        </div>
+    </div>
+    <div id="smartChoiceModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl w-full max-w-md border border-gray-200 shadow-2xl overflow-hidden transform scale-100 transition-transform">
+            <div class="p-4 bg-gray-50 border-b border-gray-200 font-bold text-moSide flex items-center gap-2">💡 <span id="smartTitle">系統提示</span></div>
+            <div class="p-6"><p id="smartDesc" class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap"></p></div>
+            <div id="smartBtnContainer" class="p-4 bg-gray-50 border-t border-gray-200 flex flex-wrap justify-end gap-2"></div>
+        </div>
+    </div>
+
+    <div id="shippingModal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl w-full max-w-sm border border-gray-300 flex flex-col shadow-lg overflow-hidden">
+            <div class="p-4 border-b bg-gray-50 font-bold text-gray-700 flex items-center gap-1">🚚 <span>執行完工出貨銷帳登記</span></div>
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="shipWoId"><input type="hidden" id="shipOrderId">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">請輸入貨運物流單號 / 配送標記</label>
+                    <input type="text" id="shipTrackingInput" class="w-full p-2.5 border rounded-lg focus:outline-none focus:border-moSide text-sm" placeholder="如：黑貓 900608 或是 廠內自送">
+                </div>
+            </div>
+            <div class="p-4 border-t flex justify-end gap-2 bg-gray-50">
+                <button onclick="closeModal('shippingModal')" class="px-4 py-2 text-xs border hover:bg-gray-100 rounded-lg">取消</button>
+                <button onclick="submitShipping(this)" class="px-4 py-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow">確認出貨</button>
+            </div>
         </div>
     </div>
 </body>
