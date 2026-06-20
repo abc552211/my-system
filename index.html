@@ -1962,12 +1962,11 @@
             );
         }
 
-        // ================= 列印估價單 (修正：自配料明細快取直讀) =================
+        // ================= 列印估價單 (修正：表頭改為「用量」) =================
         function doExecuteQuotation(index, includeDetails) {
             let row = currentTableData[index];
             let matHtml = '';
             
-            // 【修復】直接由訂單內存的配料明細字串還原清單
             if (includeDetails && row['配料明細']) {
                 try {
                     let bom = JSON.parse(row['配料明細']);
@@ -1976,7 +1975,7 @@
                             let matObj = (currentDropdowns['物料編號'] || []).find(opt => opt.id === m.id);
                             return `<tr><td class="p-1.5 border border-gray-300 text-xs">${m.id}</td><td class="p-1.5 border border-gray-300 text-xs">${matObj ? matObj.name.replace(m.id+' - ', '') : '配套原料'}</td><td class="p-1.5 border border-gray-300 text-xs text-center font-bold">${m.qty}</td></tr>`;
                         }).join('');
-                        matHtml = `<h3 class="font-bold text-xs text-moSide mb-1 mt-4">📦 隨單預計消耗用料清單</h3><table class="w-full text-left border-collapse border border-gray-300 text-xs mb-4"><thead><tr class="bg-gray-50"><th class="p-1.5 border border-gray-300">物料編號</th><th class="p-1.5 border border-gray-300">名稱規格</th><th class="p-1.5 border border-gray-300 text-center">預估用量</th></tr></thead><tbody>${mRows}</tbody></table>`;
+                        matHtml = `<h3 class="font-bold text-xs text-moSide mb-1 mt-4">📦 隨單預計消耗用料清單</h3><table class="w-full text-left border-collapse border border-gray-300 text-xs mb-4"><thead><tr class="bg-gray-50"><th class="p-1.5 border border-gray-300">物料編號</th><th class="p-1.5 border border-gray-300">名稱規格</th><th class="p-1.5 border border-gray-300 text-center">用量</th></tr></thead><tbody>${mRows}</tbody></table>`;
                     }
                 } catch(e){}
             }
@@ -2038,7 +2037,7 @@
             );
         }
 
-        // ================= 內部毛利試算表 (修正：緊湊高密度精簡排版) =================
+        // ================= 內部毛利試算表 (修正：底部結算區塊拉寬、字體加大) =================
         function doExecuteMargin(index, includeDetails) {
             let row = currentTableData[index]; 
             let rev = parseFloat(row['總金額']||0) + parseFloat(row['運費報價']||0); 
@@ -2056,7 +2055,7 @@
                             let uPrice = matObj ? parseFloat(matObj.price)||0 : 0;
                             return `<tr><td class="p-1.5 border border-gray-300 font-mono">${m.id}</td><td class="p-1.5 border border-gray-300 text-[11px]">${matObj?matObj.name.replace(m.id+' - ', ''):'廠內耗材'}</td><td class="p-1.5 border border-gray-300 text-center font-bold">${m.qty}</td><td class="p-1.5 border border-gray-300 text-right">$ ${uPrice}</td><td class="p-1.5 border border-gray-300 text-right font-bold">$ ${(m.qty*uPrice).toLocaleString()}</td></tr>`;
                         }).join('');
-                        matHtml = `<h3 class="font-bold text-xs text-moSide mb-1 mt-4">📋 生產精算用料成本分攤明細</h3><table class="w-full text-left border-collapse border border-gray-300 text-xs mb-4"><thead><tr class="bg-gray-50"><th class="p-1.5 border border-gray-300">物料代號</th><th class="p-1.5 border border-gray-300">品名規格</th><th class="p-1.5 border border-gray-300 text-center">預算量</th><th class="p-1.5 border border-gray-300 text-right">材料單價</th><th class="p-1.5 border border-gray-300 text-right">成本小計</th></tr></thead><tbody>${mRows}</tbody></table>`;
+                        matHtml = `<h3 class="font-bold text-xs text-moSide mb-1 mt-4">📋 生產精算用料成本分攤明細</h3><table class="w-full text-left border-collapse border border-gray-300 text-xs mb-4"><thead><tr class="bg-gray-50"><th class="p-1.5 border border-gray-300">物料代號</th><th class="p-1.5 border border-gray-300">品名規格</th><th class="p-1.5 border border-gray-300 text-center">用量</th><th class="p-1.5 border border-gray-300 text-right">材料單價</th><th class="p-1.5 border border-gray-300 text-right">成本小計</th></tr></thead><tbody>${mRows}</tbody></table>`;
                     }
                 } catch(e){}
             }
@@ -2086,15 +2085,15 @@
                         </div>
                     </div>
                     ${matHtml}
-                    <div class="p-3 bg-moSide text-white rounded-lg shadow border flex justify-around items-center text-center">
-                        <div>
-                            <h3 class="text-[11px] opacity-80 mb-0.5">預估專案淨毛利</h3>
-                            <p class="text-base font-bold">$ ${profit.toLocaleString()}</p>
+                    
+                    <div class="mt-4 p-5 bg-moSide text-white rounded-lg shadow-md border grid grid-cols-2 divide-x divide-white divide-opacity-30">
+                        <div class="text-center">
+                            <h3 class="text-sm font-bold opacity-90 mb-1">預估專案淨毛利</h3>
+                            <p class="text-2xl font-bold tracking-wider">$ ${profit.toLocaleString()}</p>
                         </div>
-                        <div class="border-l border-white border-opacity-20 h-6"></div>
-                        <div>
-                            <h3 class="text-[11px] opacity-80 mb-0.5">預估專案毛利率</h3>
-                            <p class="text-base font-bold text-green-300">${margin}%</p>
+                        <div class="text-center">
+                            <h3 class="text-sm font-bold opacity-90 mb-1">預估專案毛利率</h3>
+                            <p class="text-2xl font-bold tracking-wider text-green-300">${margin}%</p>
                         </div>
                     </div>
                 </div>`;
