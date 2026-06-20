@@ -1169,26 +1169,30 @@
             if(!hasMats) container.innerHTML = '<p class="text-xs text-gray-400 p-2 bg-gray-50 rounded">此單尚無領料紀錄。</p>';
         }
 
-        // ================= 扣料視窗開啟與歷史配料帶入 =================
+        // ================= 扣料視窗開啟與歷史配料帶入 (修正版：扣料保留頂部資訊做最終核對) =================
         function openMatModal(orderId, actionType) {
             document.getElementById('matOrderId').innerText = orderId;
             document.getElementById('matActionType').value = actionType;
             document.getElementById('matList').innerHTML = '';
             
             const isEst = (actionType === 'estimate');
-            document.getElementById('estTopBusinessGroup').classList.toggle('hidden', !isEst);
-            document.getElementById('matModalTitle').innerText = isEst ? "📐 訂單配料成本與商務估價" : "📦 最終確認：執行實體扣料";
-            document.getElementById('matSubmitBtn').innerText = isEst ? "儲存估價配料" : "確認無誤，執行扣料";
+            
+            // 【修正】無論估價或扣料，一律顯示頂部商務數值群組，供最後防呆核對
+            document.getElementById('estTopBusinessGroup').classList.remove('hidden');
+            
+            document.getElementById('matModalTitle').innerText = isEst ? "📐 訂單配料成本與商務估價" : "📦 最終確認：檢視配料與執行實體扣料";
+            document.getElementById('matSubmitBtn').innerText = isEst ? "儲存估價配料" : "確認配料無誤，執行扣料";
             document.getElementById('addMatBtn').classList.toggle('hidden', !isEst);
 
             let rowData = currentTableData.find(r => r['訂單編號'] === orderId) || {};
             
             // 載入先前的商務數值與備註
             document.getElementById('estQty').value = rowData['數量'] || 1;
+            document.getElementById('estUnitPrice').value = rowData['單價'] || 0; // 必須把原本存好的單價帶進來
             document.getElementById('estFreightCost').value = rowData['運費成本'] || 0;
             document.getElementById('estFreightPrice').value = rowData['運費報價'] || 0;
             document.getElementById('estFinalDetailsText').value = rowData['訂單細項'] || '';
-            document.getElementById('estFinalDetailsText').disabled = !isEst; // 扣料時只能看
+            document.getElementById('estFinalDetailsText').disabled = !isEst; // 扣料時只能看不能改
 
             // 解析歷史配料明細
             let savedMats = [];
@@ -1203,9 +1207,9 @@
                 addMatRow();
             }
 
-            // 若為扣料確認模式，鎖定輸入框防呆
+            // 【修正防呆】若為扣料確認模式，鎖定「上方商務欄位」與「配料清單」所有輸入框
             setTimeout(() => {
-                document.querySelectorAll('.mat-row input, .mat-row button').forEach(el => { el.disabled = !isEst; });
+                document.querySelectorAll('#estTopBusinessGroup input, .mat-row input, .mat-row button').forEach(el => { el.disabled = !isEst; });
                 calcMatCost();
             }, 100);
 
@@ -1230,31 +1234,42 @@
             if(initVal) filterMatOptions(div.querySelector('.mat-sel-input'), listId);
         }
 
-        // ================= 智慧金額自動精算 =================
+        // ================= 智慧金額自動精算 (修正版：直接由底層陣列抓取，零失誤) =================
         function calcMatCost() {
             let matTotalCost = 0; let matTotalSell = 0;
             document.querySelectorAll('.mat-row').forEach(row => {
-                const input = row.querySelector('.mat-sel-input'); const qtyInput = row.querySelector('.mat-qty');
+                const input = row.querySelector('.mat-sel-input'); 
+                const qtyInput = row.querySelector('.mat-qty');
                 if (input && qtyInput && input.value && qtyInput.value) {
-                    const datalist = row.querySelector('datalist');
-                    const option = Array.from(datalist.options).find(opt => opt.value === input.value);
-                    const price = option ? (parseFloat(option.getAttribute('data-price')) || 0) : 0;
-                    const sellPrice = option ? (parseFloat(option.getAttribute('data-sell')) || 0) : 0; // 抓取售價
+                    // 系統自動切出料號，直接去底層快取抓單價/售價，不再依賴畫面選單
+                    let matId = input.value.split(' ')[0];
+                    let matData = (currentDropdowns['物料編號'] || []).find(m => m.id === matId);
+                    
+                    const price = matData ? (parseFloat(matData.price) || 0) : 0;
+                    const sellPrice = matData ? (parseFloat(matData.sellPrice) || 0) : 0; 
                     const q = parseFloat(qtyInput.value) || 0;
-                    matTotalCost += (price * q); matTotalSell += (sellPrice * q);
+                    
+                    matTotalCost += (price * q); 
+                    matTotalSell += (sellPrice * q);
                 }
             });
             document.getElementById('matTotalCost').innerText = matTotalCost.toLocaleString();
 
             let qty = parseFloat(document.getElementById('estQty').value) || 1;
-            // 系統自動由材料售價反推對客單價
-            let autoUnitPrice = Math.round(matTotalSell / qty) || 0;
-            document.getElementById('estUnitPrice').value = autoUnitPrice; 
             
+            // 系統自動由材料售價總和，反推算出單一產品的對客單價
+            let autoUnitPrice = Math.round(matTotalSell / qty) || 0;
+            
+            // 【邏輯修正】只有在「估價階段」才允許系統自動變更單價。「實體扣料階段」則維持歷史訂單單價不變。
+            if(document.getElementById('matActionType').value === 'estimate') {
+                document.getElementById('estUnitPrice').value = autoUnitPrice; 
+            }
+            
+            let currentUnitPrice = parseFloat(document.getElementById('estUnitPrice').value) || 0;
             let fCost = parseFloat(document.getElementById('estFreightCost').value || 0);
             let fPrice = parseFloat(document.getElementById('estFreightPrice').value || 0);
 
-            let productSum = qty * autoUnitPrice;
+            let productSum = qty * currentUnitPrice;
             let totalRevenue = productSum + fPrice;
             let totalCost = matTotalCost + fCost;
             let netProfit = totalRevenue - totalCost;
