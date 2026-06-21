@@ -525,16 +525,23 @@
         // 全域排序狀態暫存
         let currentSortCol = ''; let currentSortDir = 'asc';
 
-        // ================= 智慧隱藏展開、按鈕左移、退料與狀態控制渲染器 =================
+        // ================= 智慧隱藏展開、欄位下收收合面板、與狀態控制渲染器 =================
         function renderTable(data, hasOpAuth, hasEditAuth) {
             const container = document.getElementById('tableContainer');
             currentTableData = data || [];
             let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead class="bg-gray-100 text-moSide border-b border-gray-300"><tr>`;
             
             if (currentHeaders.length > 0) {
+                // 過濾掉基礎系統隱藏欄位
                 let displayHeaders = (currentSheet === '權限管理' || currentSysName === 'SYS') 
                     ? currentHeaders.filter(h => h !== '可視系統' && h !== '可操作系統' && h !== '可編輯系統') 
                     : currentHeaders.filter(h => h !== '配料明細');
+
+                // 【優化核心】如果是 OMS 系統，將指定欄位從主表表頭移除，避免畫面過長
+                const omsHideHeaders = ['數量', '預估良率', '產出量', '預估成本', '運費成本', '運費報價', '運費備註'];
+                if (currentSysName === 'OMS') {
+                    displayHeaders = displayHeaders.filter(h => !omsHideHeaders.includes(h));
+                }
 
                 tableHTML += `<th class="p-3 w-10 text-center select-none"></th>`;
                 displayHeaders.forEach(h => {
@@ -597,7 +604,7 @@
                         });
                         tableHTML += `</tr>`;
 
-                        // 【需求 4】在查看展開時，顯示出加工備註
+                        // 如果有配料明細，將它整理成規格化小表格
                         if (currentSysName === 'OMS' && row['配料明細']) {
                             try {
                                 let bom = JSON.parse(row['配料明細']);
@@ -612,11 +619,30 @@
                             } catch(e){}
                         }
 
+                        // 【優化核心】將主表隱藏的 7 大商務營運指標，直接格式化整合至收合檢視區的最上方
+                        if (currentSysName === 'OMS') {
+                            let bizHtml = `<div class="grid grid-cols-2 md:grid-cols-7 gap-3 p-3 bg-purple-50 rounded-xl border border-purple-100 mb-4 text-xs font-bold text-gray-700 shadow-inner">`;
+                            const targetKeys = ['數量', '預估良率', '產出量', '預估成本', '運費成本', '運費報價', '運費備註'];
+                            targetKeys.forEach(k => {
+                                let v = row[k] || '0';
+                                let isFin = k.includes('成本') || k.includes('報價') || k.includes('金額');
+                                if (!userShowFinance && isFin) {
+                                    v = `<span class="text-gray-400 italic">🔒 鎖定</span>`;
+                                } else if (isFin && !isNaN(v) && v !== '') {
+                                    v = `$ ` + parseFloat(v).toLocaleString();
+                                } else if (k === '預估良率' && v !== '' && !v.toString().includes('%')) {
+                                    v = v + ` %`;
+                                }
+                                bizHtml += `<div><span class="text-gray-400 block mb-0.5 text-[11px]">${k}</span><span class="text-moSide text-sm font-extrabold">${v}</span></div>`;
+                            });
+                            bizHtml += `</div>`;
+                            detailsHTML = bizHtml + detailsHTML; // 置頂插入
+                        }
+
                         // 下方長條按鈕控制列
                         const totalColSpan = displayHeaders.length + 1;
                         tableHTML += `<tr id="btn_row_${index}" class="hidden bg-gray-50 border-b border-gray-200"><td colspan="${totalColSpan}" class="p-2 pl-12"><div class="flex flex-wrap items-center gap-4 text-xs">`;
                         
-                        // 【需求 3】將「查看」按鈕挪到最左邊第一順位
                         if (detailsHTML !== '') {
                             tableHTML += `<button id="btn_detail_${index}" onclick="toggleDetails('detail_${index}')" class="w-20 bg-gray-200 border border-gray-300 text-gray-700 py-1 rounded hover:bg-gray-300 font-bold">查看 ▼</button>`;
                         }
@@ -671,7 +697,6 @@
 
                         tableHTML += `${btnSlot1}${btnSlot2}${btnSlot3}${btnSlot4}`;
                         
-                        // 【需求 3】編輯按鈕靠右對齊 (ml-auto)
                         if (hasEditAuth && currentSysName !== 'EQS') {
                             tableHTML += `<button onclick="openModal(${index})" class="w-20 border border-moSide text-moSide py-1 rounded hover:bg-gray-100 font-bold ml-auto">📝 編輯</button>`;
                         }
@@ -683,29 +708,7 @@
                 tableHTML += `</tbody></table></div>`;
             } else { tableHTML += `<div class="p-10 text-center text-gray-400 tracking-wider">目前工作表無表頭，請確認有建立欄位。</div>`; }
             
-            // 保持原本 EIP 獨立區塊
-            if (currentSysName === 'EIP') {
-                let eipHtml = `<div class="p-6 bg-white border border-moBorder rounded-lg mt-6 shadow-sm"><div class="flex justify-between items-center mb-6"><h2 class="text-xl font-bold text-moSide border-l-4 border-moSide pl-2">工作交接清單</h2>`;
-                if(hasEditAuth) {
-                    eipHtml += `<div class="flex gap-2"><button onclick="openModal()" class="bg-gray-200 hover:bg-gray-300 text-moSide px-4 py-2 rounded text-sm shadow">＋ 內部公告</button><button onclick="openHandoverModal()" class="bg-moSide hover:bg-gray-600 text-white px-4 py-2 rounded text-sm shadow">＋ 新增交接</button></div>`;
-                }
-                eipHtml += `</div><div class="grid grid-cols-1 md:grid-cols-3 gap-4">`;
-                if(currentHandovers.length === 0) eipHtml += `<p class="text-gray-400 col-span-3 text-center py-4">目前無交接事項</p>`;
-                else {
-                    currentHandovers.forEach(ho => {
-                        let bg = 'bg-green-50 border-green-200', textCol = 'text-green-700', badge = '低';
-                        if(ho.priority === '高') { bg = 'bg-red-50 border-red-200'; textCol = 'text-red-700'; badge = '高'; }
-                        else if(ho.priority === '中') { bg = 'bg-yellow-50 border-yellow-200'; textCol = 'text-yellow-700'; badge = '中'; }
-                        let imgHtml = ho.image ? `<div class="mt-2 text-center"><img src="${ho.image}" class="rounded-md max-h-32 inline-block object-contain border border-gray-200 cursor-pointer shadow-sm hover:opacity-80" onclick="openImageModal(this.src)"></div>` : '';
-                        eipHtml += `<div class="p-4 rounded-lg border ${bg} relative shadow-sm flex flex-col">`;
-                        if(hasEditAuth) eipHtml += `<button onclick="doDeleteHandover('${ho.time}', this)" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold text-lg leading-none">&times;</button>`;
-                        eipHtml += `<div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white ${ho.priority==='高'?'bg-red-500':(ho.priority==='中'?'bg-yellow-500':'bg-green-500')}">${badge}</span><span class="text-xs text-gray-500">${ho.time}</span></div></div>`;
-                        eipHtml += `<p class="text-xs font-bold text-moSide mb-2 border-b border-gray-200 pb-1">接收人：${ho.assignee}</p><p class="${textCol} text-sm font-semibold whitespace-pre-wrap flex-1">${ho.content}</p>${imgHtml}<p class="text-xs text-gray-500 mt-3 text-right border-t border-white pt-2">- ${ho.creator}</p></div>`;
-                    });
-                }
-                eipHtml += `</div></div>`; tableHTML += eipHtml;
-            }
-
+            // 財務統計面板 (維持 ERP 獨立區塊)
             if (currentSysName === 'ERP') {
                 let totalInventoryValue = 0; let totalUnreceivedValue = 0;
                 currentTableData.forEach(row => { let stock = parseFloat(row['目前庫存']) || 0; let price = parseFloat(row['內價']) || parseFloat(row['單價']) || 0; if(stock > 0) totalInventoryValue += (stock * price); });
