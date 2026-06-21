@@ -715,6 +715,7 @@
                             bizHtml += `<div><span class="text-gray-400 block mb-0.5 text-[11px]">${k}</span><span class="text-moSide text-sm font-extrabold">${v}</span></div>`;
                         });
                         bizHtml += `</div>`; detailsHTML = bizHtml + detailsHTML;
+
                         // ================= 【需求 3】在 OMS 查看面板顯示每一道工序的進度與耗時 =================
                         let woLogs = currentAllWos.filter(w => w['關聯訂單'] === row['訂單編號']);
                         if(woLogs.length > 0) {
@@ -1897,6 +1898,10 @@
                 }
                 else if (header.includes('內容') || header.includes('備註') || header.includes('細項') || header.includes('簡述')) {
                     fieldHTML += `<textarea id="input_${header}" style="min-height:90px; max-height:280px; resize:vertical;" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">${val}</textarea>`;
+                }
+                    // 【新增】EQM 產線容量專屬數字防呆輸入框
+                else if (header === '產線容量' && currentSysName === 'EQM') {
+                    fieldHTML += `<input type="number" min="1" id="input_${header}" value="${val || 1}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">`;
                 }
                 else if (currentDropdowns[header] && currentDropdowns[header].length > 0) {
                     let optHtml = currentDropdowns[header].map(opt => { let oVal = typeof opt === 'object' ? opt.id : opt; let oName = typeof opt === 'object' ? opt.name : opt; return `<option value="${oVal}" ${val===oVal?'selected':''}>${oName}</option>`; }).join('');
