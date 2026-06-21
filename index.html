@@ -558,38 +558,6 @@
                         const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                         
                         let isLowStock = false; let isRestocking = false; let restockQty = 0;
-                        // ================= 【修復】保持原本被分流的 EIP 看板與早會按鈕 =================
-            if (currentSysName === 'EIP') {
-                let eipHtml = `<div class="p-6 bg-white border border-moBorder rounded-lg mt-6 shadow-sm"><div class="flex justify-between items-center mb-6"><h2 class="text-xl font-bold text-moSide border-l-4 border-moSide pl-2">工作交接與早會看版</h2>`;
-                
-                eipHtml += `<div class="flex gap-2">`;
-                // 加入產生早會報告按鈕
-                if(hasOpAuth) {
-                    eipHtml += `<button onclick="generateMorningReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm shadow font-bold">📋 產生早會報告</button>`;
-                }
-                if(hasEditAuth) {
-                    eipHtml += `<button onclick="openModal()" class="bg-gray-200 hover:bg-gray-300 text-moSide px-4 py-2 rounded text-sm shadow font-bold">＋ 內部公告</button>`;
-                    eipHtml += `<button onclick="openHandoverModal()" class="bg-moSide hover:bg-gray-600 text-white px-4 py-2 rounded text-sm shadow font-bold">＋ 新增交接</button>`;
-                }
-                eipHtml += `</div></div>`;
-
-                eipHtml += `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">`;
-                if(currentHandovers.length === 0) eipHtml += `<p class="text-gray-400 col-span-3 text-center py-4">目前無交接事項</p>`;
-                else {
-                    currentHandovers.forEach(ho => {
-                        let bg = 'bg-green-50 border-green-200', textCol = 'text-green-700', badge = '低';
-                        if(ho.priority === '高') { bg = 'bg-red-50 border-red-200'; textCol = 'text-red-700'; badge = '高'; }
-                        else if(ho.priority === '中') { bg = 'bg-yellow-50 border-yellow-200'; textCol = 'text-yellow-700'; badge = '中'; }
-                        let imgHtml = ho.image ? `<div class="mt-2 text-center"><img src="${ho.image}" class="rounded-md max-h-32 inline-block object-contain border border-gray-200 cursor-pointer shadow-sm hover:opacity-80" onclick="openImageModal(this.src)"></div>` : '';
-                        eipHtml += `<div class="p-4 rounded-lg border ${bg} relative shadow-sm flex flex-col">`;
-                        if(hasEditAuth) eipHtml += `<button onclick="doDeleteHandover('${ho.time}', this)" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold text-lg leading-none">&times;</button>`;
-                        eipHtml += `<div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white ${ho.priority==='高'?'bg-red-500':(ho.priority==='中'?'bg-yellow-500':'bg-green-500')}">${badge}</span><span class="text-xs text-gray-500">${ho.time}</span></div></div>`;
-                        eipHtml += `<p class="text-xs font-bold text-moSide mb-2 border-b border-gray-200 pb-1">接收人：${ho.assignee}</p><p class="${textCol} text-sm font-semibold whitespace-pre-wrap flex-1">${ho.content}</p>${imgHtml}<p class="text-xs text-gray-500 mt-3 text-right border-t border-white pt-2">- ${ho.creator}</p></div>`;
-                    });
-                }
-                eipHtml += `</div></div>`; tableHTML += eipHtml;
-            }
-                        
                         if(currentSysName === 'ERP') {
                             let stock = parseFloat(row['目前庫存']) || 0; let safe = parseFloat(row['安全庫存']) || 0;
                             if(stock < safe) isLowStock = true;
@@ -740,6 +708,59 @@
                 tableHTML += `</tbody></table></div>`;
             } else { tableHTML += `<div class="p-10 text-center text-gray-400 tracking-wider">目前工作表無表頭，請確認有建立欄位。</div>`; }
             
+            // ================= 【修復】保持原本被分流的 EIP 看板與早會按鈕 =================
+            if (currentSysName === 'EIP') {
+                let eipHtml = `<div class="p-6 bg-white border border-moBorder rounded-lg mt-6 shadow-sm"><div class="flex justify-between items-center mb-6"><h2 class="text-xl font-bold text-moSide border-l-4 border-moSide pl-2">工作交接與早會看版</h2>`;
+                
+                eipHtml += `<div class="flex gap-2">`;
+                // 加入產生早會報告按鈕
+                if(hasOpAuth) {
+                    eipHtml += `<button onclick="generateMorningReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm shadow font-bold">📋 產生早會報告</button>`;
+                }
+                if(hasEditAuth) {
+                    eipHtml += `<button onclick="openModal()" class="bg-gray-200 hover:bg-gray-300 text-moSide px-4 py-2 rounded text-sm shadow font-bold">＋ 內部公告</button>`;
+                    eipHtml += `<button onclick="openHandoverModal()" class="bg-moSide hover:bg-gray-600 text-white px-4 py-2 rounded text-sm shadow font-bold">＋ 新增交接</button>`;
+                }
+                eipHtml += `</div></div>`;
+
+                // 【修正 1】將內部公告獨立抽出並置頂顯示
+                let announcementHtml = '';
+                let handoverHtml = '';
+                
+                if (currentTableData.length > 0) {
+                     announcementHtml = `<div class="mb-6 border border-blue-200 rounded-lg overflow-hidden shadow-sm">
+                                            <div class="bg-blue-50 text-blue-800 font-bold p-3 border-b border-blue-200">📢 內部公告</div>
+                                            <div class="p-0 m-0"><ul class="divide-y divide-gray-100">`;
+                     currentTableData.forEach(row => {
+                         let content = row['公告內容'] || row['內容'] || row['主旨'] || '';
+                         let date = row['公告日期'] || row['日期'] || '';
+                         announcementHtml += `<li class="p-3 bg-white hover:bg-blue-50 transition-colors flex justify-between items-center"><span class="text-gray-700 font-semibold">${content}</span><span class="text-xs text-gray-500">${date}</span></li>`;
+                     });
+                     announcementHtml += `</ul></div></div>`;
+                }
+
+                // 【修正 2】加上「優先級」說明
+                handoverHtml += `<h3 class="font-bold text-moSide mb-3 mt-4 border-b pb-2">交接清單 <span class="text-xs text-gray-500 font-normal ml-2">(優先級：高/中/低)</span></h3>`;
+                handoverHtml += `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">`;
+                if(currentHandovers.length === 0) handoverHtml += `<p class="text-gray-400 col-span-3 text-center py-4">目前無交接事項</p>`;
+                else {
+                    currentHandovers.forEach(ho => {
+                        let bg = 'bg-green-50 border-green-200', textCol = 'text-green-700', badge = '低';
+                        if(ho.priority === '高') { bg = 'bg-red-50 border-red-200'; textCol = 'text-red-700'; badge = '高'; }
+                        else if(ho.priority === '中') { bg = 'bg-yellow-50 border-yellow-200'; textCol = 'text-yellow-700'; badge = '中'; }
+                        let imgHtml = ho.image ? `<div class="mt-2 text-center"><img src="${ho.image}" class="rounded-md max-h-32 inline-block object-contain border border-gray-200 cursor-pointer shadow-sm hover:opacity-80" onclick="openImageModal(this.src)"></div>` : '';
+                        handoverHtml += `<div class="p-4 rounded-lg border ${bg} relative shadow-sm flex flex-col">`;
+                        if(hasEditAuth) handoverHtml += `<button onclick="doDeleteHandover('${ho.time}', this)" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold text-lg leading-none">&times;</button>`;
+                        handoverHtml += `<div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white ${ho.priority==='高'?'bg-red-500':(ho.priority==='中'?'bg-yellow-500':'bg-green-500')}">${badge}</span><span class="text-xs text-gray-500">${ho.time}</span></div></div>`;
+                        handoverHtml += `<p class="text-xs font-bold text-moSide mb-2 border-b border-gray-200 pb-1">接收人：${ho.assignee}</p><p class="${textCol} text-sm font-semibold whitespace-pre-wrap flex-1">${ho.content}</p>${imgHtml}<p class="text-xs text-gray-500 mt-3 text-right border-t border-white pt-2">- ${ho.creator}</p></div>`;
+                    });
+                }
+                handoverHtml += `</div>`;
+                
+                eipHtml += announcementHtml + handoverHtml + `</div>`; 
+                tableHTML += eipHtml;
+            }
+
             // 財務統計面板 (維持 ERP 獨立區塊)
             if (currentSysName === 'ERP') {
                 let totalInventoryValue = 0; let totalUnreceivedValue = 0;
