@@ -1519,31 +1519,33 @@
             container.appendChild(div);
         }
 
-        // ================= 【修復】查看/收合按鈕強制綁定全域，確保不被攔截 =================
+        // ================= 【修復】查看/收合按鈕強固切換引擎 (解決估料後打不開) =================
         window.toggleDetails = function(rowId) { 
             const row = document.getElementById(rowId); 
             const btn = document.getElementById('btn_' + rowId);
             if(!row) return;
+            
             row.classList.toggle('hidden');
             if(!btn) return;
+            
             if(!row.classList.contains('hidden')) { 
                 btn.innerText = '收合 ▲'; 
-                btn.classList.remove('bg-gray-200'); btn.classList.add('bg-gray-300');
+                btn.className = "w-20 bg-gray-300 border border-gray-300 text-gray-700 py-1 rounded font-bold";
             } else { 
                 btn.innerText = '查看 ▼'; 
-                btn.classList.remove('bg-gray-300'); btn.classList.add('bg-gray-200');
+                btn.className = "w-20 bg-gray-200 border border-gray-300 text-gray-700 py-1 rounded font-bold";
             }
         };
 
-        // ================= 【需求 1 & 4】OMS 排程多工序排程鏈構造器 (支援模糊搜尋與自動帶出) =================
+        // ================= OMS 排程多工序排程嚮導 (移除自訂名稱、修復卡死) =================
         window.openWoModal = function(orderId, prodName) {
             let container = document.getElementById('woModal').querySelector('.space-y-4');
             container.innerHTML = `
                 <input type="hidden" id="woOrderId" value="${orderId}">
                 <input type="hidden" id="woProdName" value="${decodeURIComponent(prodName)}">
                 <div class="flex justify-between items-center border-b pb-1">
-                    <span class="text-xs font-bold text-moSide border-l-2 border-moSide pl-1">工序鏈排程設定 (依序進行)</span>
-                    <button onclick="addWoStepRow()" class="bg-moSide text-white text-xs px-2 py-0.5 rounded shadow hover:bg-gray-600">+ 增加下一道工序</button>
+                    <span class="text-xs font-bold text-moSide border-l-2 border-moSide pl-1">工序鏈排程鏈設定 (依序進行)</span>
+                    <button onclick="addWoStepRow()" class="bg-moSide text-white text-xs px-3 py-0.5 rounded shadow hover:bg-gray-600 font-bold">+ 增加下一工序</button>
                 </div>
                 <div id="woStepsContainer" class="space-y-3 max-h-[50vh] overflow-y-auto pr-1 pb-2"></div>
             `;
@@ -1559,16 +1561,12 @@
             let mOpts = '';
             let eOpts = '<option value="">請指派操作人員...</option>';
             
-            // 讀取工序機台選單 (供 datalist 模糊搜尋)
             if(currentDropdowns['作業機台']) {
                 currentDropdowns['作業機台'].forEach(m => { 
-                    // 將 "[M001 | 裁切機 | 待機中]" 格式化為純淨字串
                     let cleanName = m.name.replace(/\[|\]/g, '');
                     mOpts += `<option value="${m.id} - ${cleanName}"></option>`; 
                 });
             }
-            
-            // 【修復】正確讀取並指派員工姓名選單
             if(currentDropdowns['員工姓名']) {
                 currentDropdowns['員工姓名'].forEach(e => { 
                     let eName = typeof e === 'object' ? e.name : e; 
@@ -1585,8 +1583,8 @@
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-[10px] text-moSide font-bold mb-1">🔍 搜尋工序與設備 (自動帶入編號)</label>
-                        <input list="${listId}" class="wo-step-mac-input w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-moSide bg-indigo-50 font-bold text-indigo-800" placeholder="輸入關鍵字模糊搜尋...">
+                        <label class="block text-[10px] text-moSide font-bold mb-1">🔍 搜尋已有工序與設備 (未建檔不可使用)</label>
+                        <input list="${listId}" class="wo-step-mac w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-moSide bg-indigo-50 font-bold text-indigo-800" placeholder="輸入關鍵字或 % 模糊搜尋...">
                         <datalist id="${listId}">${mOpts}</datalist>
                     </div>
                     <div>
@@ -1594,11 +1592,7 @@
                         <select class="wo-step-emp w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-moSide">${eOpts}</select>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-3 mt-1">
-                    <div>
-                        <label class="block text-[10px] text-moSide font-bold mb-1">自訂工序名稱 (選填)</label>
-                        <input type="text" class="wo-step-name w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-moSide" placeholder="如未填則自動帶入機台名">
-                    </div>
+                <div class="grid grid-cols-1 gap-3 mt-1">
                     <div>
                         <label class="block text-[10px] text-moSide font-bold mb-1">📅 預計完成日期</label>
                         <input type="date" class="wo-step-date w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-moSide" value="${today}">
@@ -1615,21 +1609,22 @@
             let steps = [];
             
             for(let i=0; i<rows.length; i++) {
-                let macInput = rows[i].querySelector('.wo-step-mac-input').value.trim();
-                let macId = macInput.split(' ')[0]; // 自動切出首段的設備/工序編號
-                let name = rows[i].querySelector('.wo-step-name').value.trim();
+                let macInput = rows[i].querySelector('.wo-step-mac').value.trim();
+                let macId = macInput.split(' ')[0]; // 自動切出編號
                 
-                // 若沒有填寫自訂名稱，則從模糊搜尋字串中自動擷取名稱
-                if(!name) {
-                    let parts = macInput.split('|');
-                    if(parts.length > 1) name = parts[1].trim();
-                    else name = macId;
+                // 【修正 1 & 2】移除自訂名稱輸入，全面自動從選單字串中提取工序名稱
+                let name = "";
+                let parts = macInput.split('|');
+                if(parts.length > 1) {
+                    name = parts[1].trim(); // 擷取中間的工序機台名稱 (例如：裁切機)
+                } else {
+                    name = macId;
                 }
                 
                 let date = rows[i].querySelector('.wo-step-date').value;
                 let emp = rows[i].querySelector('.wo-step-emp').value;
                 
-                if(!macId || !emp || !date) return alert(`請完整填寫第 ${i+1} 道工序的設備、人員與日期！`);
+                if(!macId || !emp || !date) return alert(`請完整填寫第 ${i+1} 道工序的設備與人員！`);
                 steps.push({ sequence: i + 1, name: name, date: date, mac: macId, emp: emp });
             }
             if(steps.length === 0) return alert("請至少規劃一道生產工序！");
@@ -1638,8 +1633,13 @@
             const op = document.getElementById('userNameDisplay').innerText;
             
             google.script.run.withSuccessHandler(res => {
-                if(!res.success) { alert(res.msg); btn.innerHTML = '確認開工'; btn.disabled = false; }
-                else { alert(res.msg); closeModal('woModal'); refreshSystem(); }
+                if(!res.success) { 
+                    alert(res.msg); 
+                    btn.innerHTML = '確認開工'; btn.disabled = false; 
+                } else { 
+                    alert(res.msg); 
+                    closeModal('woModal'); refreshSystem(); 
+                }
             }).createSequentialWorkOrders(oId, pName, steps, op);
         };
 
