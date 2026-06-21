@@ -181,9 +181,10 @@
             </div>
             <input type="hidden" id="matActionType">
             <div class="p-6 overflow-y-auto space-y-4 flex-1">
-                <div id="estTopBusinessGroup" class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
-                    <div><label class="block text-xs font-bold text-gray-500 mb-1">生產數量</label><input type="number" id="estQty" value="1" min="1" oninput="calcMatCost()" class="w-full p-2 border rounded-lg text-sm font-bold"></div>
-                    <div><label class="block text-xs font-bold text-gray-500 mb-1">對客單價 <span class="text-[10px] text-gray-400 font-normal">(系統自算)</span></label><input type="number" id="estUnitPrice" readonly class="w-full p-2 border rounded-lg text-sm font-bold text-blue-700 bg-gray-100"></div>
+                <div id="estTopBusinessGroup" class="grid grid-cols-2 md:grid-cols-5 gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">目標出貨量</label><input type="number" id="estTargetQty" value="1" min="1" oninput="calcMatCost()" class="w-full p-2 border rounded-lg text-sm font-bold text-indigo-700"></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">預估良率 (%)</label><input type="number" id="estYieldRate" value="100" min="1" max="100" oninput="calcMatCost()" class="w-full p-2 border rounded-lg text-sm font-bold text-orange-600"></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">實際投產量</label><input type="number" id="estQty" readonly class="w-full p-2 border bg-gray-100 text-gray-500 rounded-lg text-sm font-bold cursor-not-allowed"></div>
                     <div><label class="block text-xs font-bold text-gray-500 mb-1">運費成本</label><input type="number" id="estFreightCost" value="0" min="0" oninput="calcMatCost()" class="w-full p-2 border rounded-lg text-sm font-bold text-red-600"></div>
                     <div><label class="block text-xs font-bold text-gray-500 mb-1">運費報價</label><input type="number" id="estFreightPrice" value="0" min="0" oninput="calcMatCost()" class="w-full p-2 border rounded-lg text-sm font-bold text-green-700"></div>
                 </div>
@@ -191,10 +192,13 @@
                 <div class="flex justify-between items-center border-b pb-2"><h3 class="font-bold text-sm text-moSide">📋 生產物料配料清單</h3><button id="addMatBtn" onclick="addMatRow()" class="bg-moSide text-white text-xs px-3 py-1 rounded shadow hover:bg-gray-600 transition">+ 新增物料</button></div>
                 <div id="matList" class="space-y-2 max-h-48 overflow-y-auto"></div>
                 
-                <div class="p-4 bg-gray-50 rounded-lg flex flex-wrap justify-between items-center border text-sm gap-2">
-                    <div>總售價：<span class="font-bold text-blue-600" id="estTotalProductSum">$ 0</span></div>
+                <div class="p-4 bg-gray-50 rounded-lg flex flex-wrap justify-between items-center border text-sm gap-4">
+                    <div class="flex flex-col">
+                        <span>產品總價：<span class="font-bold text-blue-600 text-lg" id="estTotalProductSum">$ 0</span></span>
+                        <span class="text-xs text-gray-500 mt-1">平均單價：<span id="estUnitPrice" class="font-bold text-blue-500 text-base">$ 0</span></span>
+                    </div>
                     <div>總材料成本：<span class="font-bold text-red-500" id="matTotalCost">0</span></div>
-                    <div class="border-l pl-2 font-bold text-moSide">估算總利潤：<span id="estEstProfit" class="text-green-600">$ 0</span></div>
+                    <div class="border-l pl-4 font-bold text-moSide">估算總利潤：<br><span id="estEstProfit" class="text-green-600 text-xl leading-relaxed">$ 0</span></div>
                 </div>
 
                 <div>
@@ -570,7 +574,7 @@
                                 else if(key.includes('狀態') || key === '當前狀態' || key === '工單狀態') {
                                     let badgeClass = 'status-gray'; let pulseClass = '';  
                                     if(val === '原料不足' || val === '報修中' || val === '待修中' || val === '掛修') badgeClass = 'status-red';
-                                    else if(val === '待排程' || val === '估算中') badgeClass = 'status-blue';
+                                    else if(val === '估算中') badgeClass = 'bg-purple-100 text-purple-700 border border-purple-200 font-bold';
                                     else if(val === '待扣料') badgeClass = 'bg-yellow-100 text-yellow-800 border border-yellow-300 font-bold';
                                     else if(val === '備料中') badgeClass = 'status-yellow';
                                     else if(val === '生產中' || val === '已接單') { badgeClass = 'status-blue'; pulseClass = ' animate-pulse shadow-sm'; }
@@ -655,7 +659,7 @@
                                 else if (status === '生產中' || status === '待機中') { btnSlot2 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 font-bold">🔧 報修</button>`; btnSlot3 = `<button onclick="openMaintModal('${mac}')" class="w-20 bg-yellow-500 text-white py-1 rounded hover:bg-yellow-600 font-bold">💆 保養</button>`; }
                             }
                             else if (currentSysName === 'ERP') { 
-                                btnSlot1 = `<button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名與規格'])}', '${row['供應商']||''}')" class="w-24 bg-indigo-500 text-white py-1 rounded hover:bg-indigo-600 font-bold">🛒 補貨申請</button>`; 
+                                btnSlot1 = `<button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名']||row['產品名稱']||'')}', '${row['供應商']||''}')" class="w-24 bg-yellow-400 text-yellow-900 py-1 rounded hover:bg-yellow-500 font-bold shadow-sm">🛒 補貨申請</button>`; 
                             }
                         }
 
@@ -1148,7 +1152,7 @@
             if(!hasMats) container.innerHTML = '<p class="text-xs text-gray-400 p-2 bg-gray-50 rounded">此單尚無領料紀錄。</p>';
         }
 
-        // ================= 扣料視窗開啟與歷史配料帶入 (修正：解鎖追加與重工模式) =================
+        // ================= 扣料視窗開啟與歷史配料帶入 (加入良率讀取) =================
         function openMatModal(orderId, actionType) {
             document.getElementById('matOrderId').innerText = orderId;
             document.getElementById('matActionType').value = actionType;
@@ -1157,15 +1161,11 @@
             const isEst = (actionType === 'estimate');
             const isNormal = (actionType === 'normal');
             const isAddonOrRework = (actionType === 'addon' || actionType === 'rework');
-            
-            // 只有 normal (實體扣料確認) 時才是全域唯讀。estimate, addon, rework 配料區皆可編輯。
             const isReadOnly = isNormal;
 
-            // 追加/重工時，隱藏頂部商務金額區 (因為不影響原單總報價)
             document.getElementById('estTopBusinessGroup').classList.toggle('hidden', isAddonOrRework);
             
-            let title = "📐 訂單配料成本與商務估價";
-            let btnText = "儲存估價配料";
+            let title = "📐 訂單配料成本與商務估價"; let btnText = "儲存估價配料";
             if (isNormal) { title = "📦 最終確認：檢視配料與執行實體扣料"; btnText = "確認配料無誤，執行扣料"; }
             if (actionType === 'addon') { title = "➕ 追加備料扣料"; btnText = "確認追加並扣料"; }
             if (actionType === 'rework') { title = "🔄 重工備料扣料"; btnText = "確認重工並扣料"; }
@@ -1176,8 +1176,16 @@
 
             let rowData = currentTableData.find(r => r['訂單編號'] === orderId) || {};
             
-            document.getElementById('estQty').value = rowData['數量'] || 1;
-            document.getElementById('estUnitPrice').value = rowData['單價'] || 0;
+            // 讀取出貨量與投產量，並反推良率
+            let targetQty = parseFloat(rowData['數量']) || 1;
+            let prodQty = parseFloat(rowData['訂購數量']) || targetQty;
+            let yieldRate = targetQty >= prodQty ? 100 : Math.round((targetQty / prodQty) * 100);
+            
+            document.getElementById('estTargetQty').value = targetQty;
+            document.getElementById('estYieldRate').value = yieldRate;
+            document.getElementById('estQty').value = prodQty;
+            
+            document.getElementById('estUnitPrice').innerText = "$ " + parseFloat(rowData['單價'] || 0).toLocaleString();
             document.getElementById('estFreightCost').value = rowData['運費成本'] || 0;
             document.getElementById('estFreightPrice').value = rowData['運費報價'] || 0;
             document.getElementById('estFinalDetailsText').value = rowData['訂單細項'] || '';
@@ -1186,44 +1194,33 @@
             let savedMats = [];
             try { savedMats = JSON.parse(rowData['配料明細'] || '[]'); } catch(e){}
 
-            // 【邏輯修正】估價與正常扣料會帶入「歷史配料」。追加與重工必須是「空表」，讓使用者自己加！
             if ((isEst || isNormal) && savedMats.length > 0) {
                 savedMats.forEach(m => {
                     let matObj = (currentDropdowns['物料編號']||[]).find(opt => opt.id === m.id);
                     addMatRow(m.id, m.qty, matObj ? matObj.name.replace(m.id+' - ', '') : '', m.note || '');
                 });
-            } else {
-                addMatRow();
-            }
+            } else { addMatRow(); }
 
-            // 【防呆鎖定分流】
             setTimeout(() => {
-                if (isReadOnly) {
-                    // 實體扣料確認：全部鎖死只能看
-                    document.querySelectorAll('#estTopBusinessGroup input, .mat-row input, .mat-row button').forEach(el => { el.disabled = true; });
-                } else if (isAddonOrRework) {
-                    // 追加/重工：鎖定商務金額區，但開放配料區可以新增/編輯
-                    document.querySelectorAll('#estTopBusinessGroup input').forEach(el => { el.disabled = true; });
-                    document.querySelectorAll('.mat-row input, .mat-row button').forEach(el => { el.disabled = false; });
-                } else {
-                    // 估價模式：全部開放
-                    document.querySelectorAll('#estTopBusinessGroup input, .mat-row input, .mat-row button').forEach(el => { el.disabled = false; });
-                }
+                if (isReadOnly) { document.querySelectorAll('#estTopBusinessGroup input, .mat-row input, .mat-row button').forEach(el => { el.disabled = true; }); } 
+                else if (isAddonOrRework) { document.querySelectorAll('#estTopBusinessGroup input').forEach(el => { el.disabled = true; }); document.querySelectorAll('.mat-row input, .mat-row button').forEach(el => { el.disabled = false; }); } 
+                else { document.querySelectorAll('#estTopBusinessGroup input, .mat-row input, .mat-row button').forEach(el => { el.disabled = false; }); }
                 calcMatCost();
             }, 100);
-
             document.getElementById('matModal').classList.remove('hidden');
         }
-        
-        function addMatRow(matId = '', qty = '', matName = '') {
+
+        // ================= 新增配料行 (加入加工備註輸入) =================
+        function addMatRow(matId = '', qty = '', matName = '', note = '') {
             let rowCount = document.querySelectorAll('.mat-row').length;
             let listId = 'dl_mat_' + Date.now() + '_' + rowCount;
             let initVal = matId ? `${matId} - ${matName}` : '';
             
             const div = document.createElement('div'); div.className = 'flex gap-2 mat-row items-center';
             div.innerHTML = `
+                <input type="text" value="${note}" class="mat-note w-24 p-2 border rounded focus:ring-1 focus:ring-moSide text-sm" placeholder="加工備註">
                 <div class="flex-1 relative">
-                    <input list="${listId}" value="${initVal}" class="mat-sel-input w-full p-2 border rounded focus:ring-1 focus:ring-moSide text-sm" placeholder="輸入關鍵字可用 % 隔開 (如 A紙%250g)" onfocus="filterMatOptions(this, '${listId}')" oninput="filterMatOptions(this, '${listId}'); calcMatCost();" onchange="calcMatCost()">
+                    <input list="${listId}" value="${initVal}" class="mat-sel-input w-full p-2 border rounded focus:ring-1 focus:ring-moSide text-sm" placeholder="輸入關鍵字可用 % 隔開" onfocus="filterMatOptions(this, '${listId}')" oninput="filterMatOptions(this, '${listId}'); calcMatCost();" onchange="calcMatCost()">
                     <datalist id="${listId}"></datalist>
                 </div>
                 <input type="number" value="${qty}" class="mat-qty w-24 p-2 border rounded focus:ring-1 focus:ring-moSide text-sm" placeholder="數量" onkeyup="calcMatCost()" onchange="calcMatCost()" min="0">
@@ -1233,42 +1230,38 @@
             if(initVal) filterMatOptions(div.querySelector('.mat-sel-input'), listId);
         }
 
-        // ================= 智慧金額自動精算 (修正版：直接由底層陣列抓取，零失誤) =================
+        // ================= 良率與智慧金額自動精算 =================
         function calcMatCost() {
+            // 計算良率與投產量
+            let targetQty = parseFloat(document.getElementById('estTargetQty').value) || 1;
+            let yieldRate = parseFloat(document.getElementById('estYieldRate').value) || 100;
+            let prodQty = Math.ceil(targetQty / (yieldRate / 100));
+            document.getElementById('estQty').value = prodQty;
+
             let matTotalCost = 0; let matTotalSell = 0;
             document.querySelectorAll('.mat-row').forEach(row => {
-                const input = row.querySelector('.mat-sel-input'); 
-                const qtyInput = row.querySelector('.mat-qty');
+                const input = row.querySelector('.mat-sel-input'); const qtyInput = row.querySelector('.mat-qty');
                 if (input && qtyInput && input.value && qtyInput.value) {
-                    // 系統自動切出料號，直接去底層快取抓單價/售價，不再依賴畫面選單
                     let matId = input.value.split(' ')[0];
                     let matData = (currentDropdowns['物料編號'] || []).find(m => m.id === matId);
-                    
                     const price = matData ? (parseFloat(matData.price) || 0) : 0;
-                    const sellPrice = matData ? (parseFloat(matData.sellPrice) || 0) : 0; 
+                    const sellPrice = matData ? (parseFloat(matData.sellPrice) || 0) : 0;
                     const q = parseFloat(qtyInput.value) || 0;
-                    
-                    matTotalCost += (price * q); 
-                    matTotalSell += (sellPrice * q);
+                    matTotalCost += (price * q); matTotalSell += (sellPrice * q);
                 }
             });
             document.getElementById('matTotalCost').innerText = matTotalCost.toLocaleString();
 
-            let qty = parseFloat(document.getElementById('estQty').value) || 1;
-            
-            // 系統自動由材料售價總和，反推算出單一產品的對客單價
-            let autoUnitPrice = Math.round(matTotalSell / qty) || 0;
-            
-            // 【邏輯修正】只有在「估價階段」才允許系統自動變更單價。「實體扣料階段」則維持歷史訂單單價不變。
+            let autoUnitPrice = Math.round(matTotalSell / targetQty) || 0;
             if(document.getElementById('matActionType').value === 'estimate') {
-                document.getElementById('estUnitPrice').value = autoUnitPrice; 
+                document.getElementById('estUnitPrice').innerText = "$ " + autoUnitPrice.toLocaleString();
             }
             
-            let currentUnitPrice = parseFloat(document.getElementById('estUnitPrice').value) || 0;
+            let currentUnitPrice = parseFloat(document.getElementById('estUnitPrice').innerText.replace(/[^0-9.-]+/g,"")) || autoUnitPrice;
             let fCost = parseFloat(document.getElementById('estFreightCost').value || 0);
             let fPrice = parseFloat(document.getElementById('estFreightPrice').value || 0);
 
-            let productSum = qty * currentUnitPrice;
+            let productSum = targetQty * currentUnitPrice;
             let totalRevenue = productSum + fPrice;
             let totalCost = matTotalCost + fCost;
             let netProfit = totalRevenue - totalCost;
@@ -1276,7 +1269,7 @@
             document.getElementById('estTotalProductSum').innerText = "$ " + productSum.toLocaleString();
             let profitEl = document.getElementById('estEstProfit');
             profitEl.innerText = "$ " + netProfit.toLocaleString();
-            profitEl.className = netProfit >= 0 ? "text-green-600 font-bold" : "text-red-600 font-bold";
+            profitEl.className = netProfit >= 0 ? "text-green-600 font-bold text-xl leading-relaxed" : "text-red-600 font-bold text-xl leading-relaxed";
         }
 
         // 嚮導下一步或最終送出智慧分流器
@@ -1291,15 +1284,20 @@
             }
         }
 
+        // ================= 送出表單與打包資料 =================
         function submitMaterialCheck(btn) {
             const orderId = document.getElementById('matOrderId').innerText;
             const actionType = document.getElementById('matActionType').value;
             const op = document.getElementById('userNameDisplay').innerText;
 
-            const inputs = document.querySelectorAll('.mat-sel-input'); const qtys = document.querySelectorAll('.mat-qty');
+            const inputs = document.querySelectorAll('.mat-sel-input'); 
+            const qtys = document.querySelectorAll('.mat-qty');
+            const notes = document.querySelectorAll('.mat-note');
             let matArr = [];
             for(let i=0; i<inputs.length; i++) { 
-                if(inputs[i].value && qtys[i].value) { matArr.push({ id: inputs[i].value.split(' ')[0], qty: qtys[i].value }); } 
+                if(inputs[i].value && qtys[i].value) { 
+                    matArr.push({ id: inputs[i].value.split(' ')[0], qty: qtys[i].value, note: notes[i].value || '' }); 
+                } 
             }
             if(matArr.length === 0) return alert("請至少輸入一項物料與數量");
             
@@ -1308,12 +1306,13 @@
             let estParams = null;
             if(actionType === 'estimate') {
                 estParams = {
-                    qty: document.getElementById('estQty').value,
-                    unitPrice: document.getElementById('estUnitPrice').value, // 已是自動算出
-                    totalAmount: (parseFloat(document.getElementById('estQty').value||0) * parseFloat(document.getElementById('estUnitPrice').value||0)),
+                    targetQty: document.getElementById('estTargetQty').value,
+                    qty: document.getElementById('estQty').value, // 投產量
+                    unitPrice: parseFloat(document.getElementById('estUnitPrice').innerText.replace(/[^0-9.-]+/g,"")) || 0,
+                    totalAmount: parseFloat(document.getElementById('estTotalProductSum').innerText.replace(/[^0-9.-]+/g,"")) || 0,
                     freightCost: document.getElementById('estFreightCost').value,
                     freightPrice: document.getElementById('estFreightPrice').value,
-                    freightNote: '', // 運費備註已移至新增表單，此處不覆蓋
+                    freightNote: '', // 備註已在主表獨立，此處防呆空置
                     details: document.getElementById('estFinalDetailsText').value
                 };
             }
@@ -1331,8 +1330,7 @@
                         ]);
                     } else { alert(res.msg); }
                     btn.innerHTML = actionType==='estimate'?'儲存估價配料':'確認無誤，執行扣料'; btn.disabled = false; refreshSystem(); 
-                } 
-                else {
+                } else {
                     alert(res.msg); closeModal('matModal'); refreshSystem();
                     btn.innerHTML = actionType==='estimate'?'儲存估價配料':'確認無誤，執行扣料'; btn.disabled = false;
                 }
@@ -2143,8 +2141,17 @@
                     <h2 class="text-base font-bold text-center mb-4 text-moSide border-b pb-1">📈 專案毛利率精密試算報告</h2>
                     <table class="w-full text-left border-collapse border border-gray-300 text-xs mb-4 shadow-sm">
                         <tbody>
-                            <tr><th class="p-1.5 border border-gray-300 bg-gray-50 w-24">訂單單號</th><td class="p-1.5 border border-gray-300 font-mono">${row['訂單編號']}</td><th class="p-1.5 border border-gray-300 bg-gray-50 w-24">客戶名稱</th><td class="p-1.5 border border-gray-300 font-bold">${row['客戶名稱']}</td></tr>
-                            <tr><th class="p-1.5 border border-gray-300 bg-gray-50">產品名稱</th><td colspan="3" class="p-1.5 border border-gray-300 font-bold">${row['產品名稱']} ${row['完成尺寸'] ? '(尺寸: '+row['完成尺寸']+')' : ''}</td></tr>
+                            <tr>
+                                <th class="p-1.5 border border-gray-300 bg-gray-50 w-20">訂單單號</th><td class="p-1.5 border border-gray-300 font-mono">${row['訂單編號']}</td>
+                                <th class="p-1.5 border border-gray-300 bg-gray-50 w-20">客戶名稱</th><td class="p-1.5 border border-gray-300 font-bold">${row['客戶名稱']}</td>
+                            </tr>
+                            <tr>
+                                <th class="p-1.5 border border-gray-300 bg-gray-50">產品名稱</th><td colspan="3" class="p-1.5 border border-gray-300 font-bold">${row['產品名稱']} ${row['完成尺寸'] ? '(尺寸: '+row['完成尺寸']+')' : ''}</td>
+                            </tr>
+                            <tr>
+                                <th class="p-1.5 border border-gray-300 bg-gray-50 text-blue-800">目標出貨</th><td class="p-1.5 border border-gray-300 font-bold text-blue-700">${row['數量'] || 0}</td>
+                                <th class="p-1.5 border border-gray-300 bg-gray-50 text-red-800">內部投產</th><td class="p-1.5 border border-gray-300 font-bold text-red-700">${row['訂購數量'] || row['數量'] || 0} <span class="text-gray-500 font-normal ml-1">(預估良率: ${Math.round((row['數量']/row['訂購數量'])*100) || 100}%)</span></td>
+                            </tr>
                         </tbody>
                     </table>
                     
