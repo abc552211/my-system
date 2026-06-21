@@ -2279,23 +2279,21 @@
             }).shipOrderAndWo(woId, oId, trackId, op);
         }
 
-        // ================= 10分鐘早會專用報告生成 (修正：改為當前待辦統計) =================
+        // ================= 10分鐘早會專用報告生成 (精準同步版) =================
         function generateMorningReport() {
-            document.getElementById('tableContainer').innerHTML = `<div class="p-20 text-center"><div class="w-10 h-10 border-4 border-moSide border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>正在彙整全廠各線數據...</div>`;
+            document.getElementById('tableContainer').innerHTML = `<div class="p-20 text-center"><div class="w-10 h-10 border-4 border-moSide border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>正在精密同步當前待辦數據...</div>`;
             
+            // 【核心修正】直接把目前畫面上看得到的交接資料傳給後端算，數字保證百分之百同步！
             google.script.run.withSuccessHandler(res => {
                 let d = new Date();
                 let dateStr = d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
                 
-                // 處理訂單狀態清單
                 let oRows = res.orders.map(o => `<tr><td class="p-1.5 border border-gray-300 text-[11px] font-mono">${o.id}</td><td class="p-1.5 border border-gray-300 text-[11px] font-bold">${o.cust}</td><td class="p-1.5 border border-gray-300 text-[11px] truncate max-w-[120px]">${o.name}</td><td class="p-1.5 border border-gray-300 text-[11px] font-bold text-blue-700 text-center">${o.status}</td></tr>`).join('');
                 if(res.orders.length === 0) oRows = `<tr><td colspan="4" class="p-2 text-center text-xs text-gray-500">目前全廠無未結訂單</td></tr>`;
 
-                // 處理缺料清單
                 let mRows = res.lowStock.map(m => `<li class="text-[11px] text-red-600 font-bold mb-1 border-b border-red-100 pb-1">⚠️ ${m}</li>`).join('');
                 if(res.lowStock.length === 0) mRows = `<div class="text-xs text-green-600 font-bold p-2 text-center">✅ 全廠物料皆在安全水位</div>`;
 
-                // 處理待修機台
                 let eqRows = res.brokenMacs.map(eq => `<li class="text-[11px] text-red-600 font-bold mb-1 border-b border-red-100 pb-1">🔧 ${eq}</li>`).join('');
                 if(res.brokenMacs.length === 0) eqRows = `<div class="text-xs text-green-600 font-bold p-2 text-center">✅ 設備皆正常運作</div>`;
 
@@ -2306,13 +2304,11 @@
                         
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div class="border border-gray-300 rounded p-3 bg-gray-50 shadow-sm">
-                                <!-- 【修正】將「今日」改為「當前」待辦 -->
                                 <h3 class="font-bold text-xs text-gray-700 border-b border-gray-300 pb-1 mb-2">📋 當前待辦交接數量</h3>
                                 <div class="flex justify-between text-xs mb-1"><span>急件 / 高優先：</span><span class="text-red-600 font-bold text-sm">${res.handovers.high} 筆</span></div>
                                 <div class="flex justify-between text-xs mb-1"><span>中優先級：</span><span class="text-yellow-600 font-bold">${res.handovers.mid} 筆</span></div>
                                 <div class="flex justify-between text-xs"><span>一般交接：</span><span class="text-green-600 font-bold">${res.handovers.low} 筆</span></div>
                             </div>
-                            
                             <div class="border border-gray-300 rounded p-3 bg-gray-50 shadow-sm">
                                 <h3 class="font-bold text-xs text-gray-700 border-b border-gray-300 pb-1 mb-2">🔧 異常與短缺通報統計</h3>
                                 <div class="flex justify-between text-xs mb-2"><span>低庫存物料：</span><span class="font-bold text-red-600 text-sm">${res.lowStock.length} 項</span></div>
@@ -2321,14 +2317,8 @@
                         </div>
 
                         <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div class="border border-gray-300 rounded p-2">
-                                <h3 class="font-bold text-[11px] text-moSide mb-2 bg-gray-100 p-1 text-center">📦 庫存不足物料清單</h3>
-                                <ul class="pl-4 m-0">${mRows}</ul>
-                            </div>
-                            <div class="border border-gray-300 rounded p-2">
-                                <h3 class="font-bold text-[11px] text-moSide mb-2 bg-gray-100 p-1 text-center">🛑 待修機台清單</h3>
-                                <ul class="pl-4 m-0">${eqRows}</ul>
-                            </div>
+                            <div class="border border-gray-300 rounded p-2"><h3 class="font-bold text-[11px] text-moSide mb-2 bg-gray-100 p-1 text-center">📦 庫存不足物料清單</h3><ul class="pl-4 m-0">${mRows}</ul></div>
+                            <div class="border border-gray-300 rounded p-2"><h3 class="font-bold text-[11px] text-moSide mb-2 bg-gray-100 p-1 text-center">🛑 待修機台清單</h3><ul class="pl-4 m-0">${eqRows}</ul></div>
                         </div>
 
                         <h3 class="font-bold text-[11px] text-moSide mb-1 mt-4 bg-gray-100 p-1.5 rounded">🏭 線上訂單當前生產工序</h3>
@@ -2338,18 +2328,11 @@
                             </thead>
                             <tbody>${oRows}</tbody>
                         </table>
-
-                        <div class="mt-8 pt-4 border-t border-gray-400 flex justify-end">
-                            <div class="w-48 text-xs font-bold text-gray-700">
-                                值班主管簽名：<br><br><br>
-                                <div class="border-b border-gray-500"></div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                        <div class="mt-8 pt-4 border-t border-gray-400 flex justify-end"><div class="w-48 text-xs font-bold text-gray-700">值班主管簽名：<br><br><br><div class="border-b border-gray-500"></div></div></div>
+                    </div>`;
                 execHTML2PDF(html, '早會專用報告.pdf');
-                refreshSystem(); // 重整畫面恢復
-            }).getMorningReportData();
+                refreshSystem();
+            }).getMorningReportData(currentHandovers); // 傳入交接陣列
         }
         
     </script>
