@@ -558,6 +558,38 @@
                         const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                         
                         let isLowStock = false; let isRestocking = false; let restockQty = 0;
+                        // ================= 【修復】保持原本被分流的 EIP 看板與早會按鈕 =================
+            if (currentSysName === 'EIP') {
+                let eipHtml = `<div class="p-6 bg-white border border-moBorder rounded-lg mt-6 shadow-sm"><div class="flex justify-between items-center mb-6"><h2 class="text-xl font-bold text-moSide border-l-4 border-moSide pl-2">工作交接與早會看版</h2>`;
+                
+                eipHtml += `<div class="flex gap-2">`;
+                // 加入產生早會報告按鈕
+                if(hasOpAuth) {
+                    eipHtml += `<button onclick="generateMorningReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm shadow font-bold">📋 產生早會報告</button>`;
+                }
+                if(hasEditAuth) {
+                    eipHtml += `<button onclick="openModal()" class="bg-gray-200 hover:bg-gray-300 text-moSide px-4 py-2 rounded text-sm shadow font-bold">＋ 內部公告</button>`;
+                    eipHtml += `<button onclick="openHandoverModal()" class="bg-moSide hover:bg-gray-600 text-white px-4 py-2 rounded text-sm shadow font-bold">＋ 新增交接</button>`;
+                }
+                eipHtml += `</div></div>`;
+
+                eipHtml += `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">`;
+                if(currentHandovers.length === 0) eipHtml += `<p class="text-gray-400 col-span-3 text-center py-4">目前無交接事項</p>`;
+                else {
+                    currentHandovers.forEach(ho => {
+                        let bg = 'bg-green-50 border-green-200', textCol = 'text-green-700', badge = '低';
+                        if(ho.priority === '高') { bg = 'bg-red-50 border-red-200'; textCol = 'text-red-700'; badge = '高'; }
+                        else if(ho.priority === '中') { bg = 'bg-yellow-50 border-yellow-200'; textCol = 'text-yellow-700'; badge = '中'; }
+                        let imgHtml = ho.image ? `<div class="mt-2 text-center"><img src="${ho.image}" class="rounded-md max-h-32 inline-block object-contain border border-gray-200 cursor-pointer shadow-sm hover:opacity-80" onclick="openImageModal(this.src)"></div>` : '';
+                        eipHtml += `<div class="p-4 rounded-lg border ${bg} relative shadow-sm flex flex-col">`;
+                        if(hasEditAuth) eipHtml += `<button onclick="doDeleteHandover('${ho.time}', this)" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold text-lg leading-none">&times;</button>`;
+                        eipHtml += `<div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white ${ho.priority==='高'?'bg-red-500':(ho.priority==='中'?'bg-yellow-500':'bg-green-500')}">${badge}</span><span class="text-xs text-gray-500">${ho.time}</span></div></div>`;
+                        eipHtml += `<p class="text-xs font-bold text-moSide mb-2 border-b border-gray-200 pb-1">接收人：${ho.assignee}</p><p class="${textCol} text-sm font-semibold whitespace-pre-wrap flex-1">${ho.content}</p>${imgHtml}<p class="text-xs text-gray-500 mt-3 text-right border-t border-white pt-2">- ${ho.creator}</p></div>`;
+                    });
+                }
+                eipHtml += `</div></div>`; tableHTML += eipHtml;
+            }
+                        
                         if(currentSysName === 'ERP') {
                             let stock = parseFloat(row['目前庫存']) || 0; let safe = parseFloat(row['安全庫存']) || 0;
                             if(stock < safe) isLowStock = true;
@@ -2327,6 +2359,78 @@
                 alert(res.msg); closeModal('shippingModal'); refreshSystem();
                 btn.innerHTML = '確認出貨'; btn.disabled = false;
             }).shipOrderAndWo(woId, oId, trackId, op);
+        }
+
+        // ================= 10分鐘早會專用報告生成 =================
+        function generateMorningReport() {
+            document.getElementById('tableContainer').innerHTML = `<div class="p-20 text-center"><div class="w-10 h-10 border-4 border-moSide border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>正在彙整全廠各線數據...</div>`;
+            
+            google.script.run.withSuccessHandler(res => {
+                let d = new Date();
+                let dateStr = d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+                
+                // 處理訂單狀態清單
+                let oRows = res.orders.map(o => `<tr><td class="p-1.5 border border-gray-300 text-[11px] font-mono">${o.id}</td><td class="p-1.5 border border-gray-300 text-[11px] font-bold">${o.cust}</td><td class="p-1.5 border border-gray-300 text-[11px] truncate max-w-[120px]">${o.name}</td><td class="p-1.5 border border-gray-300 text-[11px] font-bold text-blue-700 text-center">${o.status}</td></tr>`).join('');
+                if(res.orders.length === 0) oRows = `<tr><td colspan="4" class="p-2 text-center text-xs text-gray-500">目前全廠無未結訂單</td></tr>`;
+
+                // 處理缺料清單
+                let mRows = res.lowStock.map(m => `<li class="text-[11px] text-red-600 font-bold mb-1 border-b border-red-100 pb-1">⚠️ ${m}</li>`).join('');
+                if(res.lowStock.length === 0) mRows = `<div class="text-xs text-green-600 font-bold p-2 text-center">✅ 全廠物料皆在安全水位</div>`;
+
+                // 處理待修機台
+                let eqRows = res.brokenMacs.map(eq => `<li class="text-[11px] text-red-600 font-bold mb-1 border-b border-red-100 pb-1">🔧 ${eq}</li>`).join('');
+                if(res.brokenMacs.length === 0) eqRows = `<div class="text-xs text-green-600 font-bold p-2 text-center">✅ 設備皆正常運作</div>`;
+
+                let html = `
+                    <div class="p-6 font-sans bg-white max-w-[210mm] mx-auto text-gray-800">
+                        <h1 class="text-xl font-bold text-center mb-1 text-moSide tracking-widest">仕罡印刷 - 10分鐘早會專用報告</h1>
+                        <div class="text-right text-[10px] text-gray-500 mb-4 border-b pb-2">報告產出時間：${dateStr}</div>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="border border-gray-300 rounded p-3 bg-gray-50 shadow-sm">
+                                <h3 class="font-bold text-xs text-gray-700 border-b border-gray-300 pb-1 mb-2">📋 今日交接與待辦數量</h3>
+                                <div class="flex justify-between text-xs mb-1"><span>急件 / 高優先：</span><span class="text-red-600 font-bold text-sm">${res.handovers.high} 筆</span></div>
+                                <div class="flex justify-between text-xs mb-1"><span>中優先級：</span><span class="text-yellow-600 font-bold">${res.handovers.mid} 筆</span></div>
+                                <div class="flex justify-between text-xs"><span>一般交接：</span><span class="text-green-600 font-bold">${res.handovers.low} 筆</span></div>
+                            </div>
+                            
+                            <div class="border border-gray-300 rounded p-3 bg-gray-50 shadow-sm">
+                                <h3 class="font-bold text-xs text-gray-700 border-b border-gray-300 pb-1 mb-2">🔧 異常與短缺通報統計</h3>
+                                <div class="flex justify-between text-xs mb-2"><span>低庫存物料：</span><span class="font-bold text-red-600 text-sm">${res.lowStock.length} 項</span></div>
+                                <div class="flex justify-between text-xs"><span>機台待修數：</span><span class="font-bold text-red-600 text-sm">${res.brokenMacs.length} 台</span></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="border border-gray-300 rounded p-2">
+                                <h3 class="font-bold text-[11px] text-moSide mb-2 bg-gray-100 p-1 text-center">📦 庫存不足物料清單</h3>
+                                <ul class="pl-4 m-0">${mRows}</ul>
+                            </div>
+                            <div class="border border-gray-300 rounded p-2">
+                                <h3 class="font-bold text-[11px] text-moSide mb-2 bg-gray-100 p-1 text-center">🛑 待修機台清單</h3>
+                                <ul class="pl-4 m-0">${eqRows}</ul>
+                            </div>
+                        </div>
+
+                        <h3 class="font-bold text-[11px] text-moSide mb-1 mt-4 bg-gray-100 p-1.5 rounded">🏭 線上訂單當前生產工序</h3>
+                        <table class="w-full text-left border-collapse border border-gray-300 mb-4">
+                            <thead class="bg-gray-100">
+                                <tr><th class="p-1.5 border border-gray-300 text-[10px] w-20">單號</th><th class="p-1.5 border border-gray-300 text-[10px] w-20">客戶</th><th class="p-1.5 border border-gray-300 text-[10px]">品名</th><th class="p-1.5 border border-gray-300 text-[10px] text-center w-16">當前狀態</th></tr>
+                            </thead>
+                            <tbody>${oRows}</tbody>
+                        </table>
+
+                        <div class="mt-8 pt-4 border-t border-gray-400 flex justify-end">
+                            <div class="w-48 text-xs font-bold text-gray-700">
+                                值班主管簽名：<br><br><br>
+                                <div class="border-b border-gray-500"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                execHTML2PDF(html, '早會專用報告.pdf');
+                refreshSystem(); // 重整畫面恢復
+            }).getMorningReportData();
         }
         
     </script>
