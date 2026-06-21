@@ -525,14 +525,13 @@
         // 全域排序狀態暫存
         let currentSortCol = ''; let currentSortDir = 'asc';
 
-        // ================= 智慧隱藏展開、表頭排序、退料與狀態控制渲染器 =================
+        // ================= 智慧隱藏展開、按鈕左移、退料與狀態控制渲染器 =================
         function renderTable(data, hasOpAuth, hasEditAuth) {
             const container = document.getElementById('tableContainer');
             currentTableData = data || [];
             let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead class="bg-gray-100 text-moSide border-b border-gray-300"><tr>`;
             
             if (currentHeaders.length > 0) {
-                // 過濾掉不需要直接顯示的系統欄位，包含「配料明細」
                 let displayHeaders = (currentSheet === '權限管理' || currentSysName === 'SYS') 
                     ? currentHeaders.filter(h => h !== '可視系統' && h !== '可操作系統' && h !== '可編輯系統') 
                     : currentHeaders.filter(h => h !== '配料明細');
@@ -575,8 +574,8 @@
                                     let badgeClass = 'status-gray'; let pulseClass = '';  
                                     if(val === '原料不足' || val === '報修中' || val === '待修中' || val === '掛修') badgeClass = 'status-red';
                                     else if(val === '估算中') badgeClass = 'bg-purple-100 text-purple-700 border border-purple-200 font-bold';
+                                    else if(val === '待排程') badgeClass = 'bg-yellow-200 text-green-700 border border-yellow-400 font-bold';
                                     else if(val === '待扣料') badgeClass = 'bg-yellow-100 text-yellow-800 border border-yellow-300 font-bold';
-                                    else if(val === '待排程') badgeClass = 'bg-yellow-200 text-green-700 border border-yellow-400 font-bold';    
                                     else if(val === '備料中') badgeClass = 'status-yellow';
                                     else if(val === '生產中' || val === '已接單') { badgeClass = 'status-blue'; pulseClass = ' animate-pulse shadow-sm'; }
                                     else if(val === '製作完成' || val === '已完工' || val === '已出貨') badgeClass = 'bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold';
@@ -598,16 +597,17 @@
                         });
                         tableHTML += `</tr>`;
 
-                        // 如果有配料明細，將它整理成整齊的表格顯示在下方下拉區塊
+                        // 【需求 4】在查看展開時，顯示出加工備註
                         if (currentSysName === 'OMS' && row['配料明細']) {
                             try {
                                 let bom = JSON.parse(row['配料明細']);
                                 if(bom.length > 0) {
                                     let bomRows = bom.map(m => {
                                         let matObj = (currentDropdowns['物料編號']||[]).find(opt => opt.id === m.id);
-                                        return `<tr><td class="p-1 border border-gray-300 text-xs">${m.id}</td><td class="p-1 border border-gray-300 text-xs">${matObj ? matObj.name.replace(m.id+' - ', '') : ''}</td><td class="p-1 border border-gray-300 text-center text-xs text-red-600 font-bold">${m.qty}</td></tr>`;
+                                        let noteStr = m.note ? `<span class="text-blue-600 font-bold">[${m.note}]</span> ` : '';
+                                        return `<tr><td class="p-1 border border-gray-300 text-xs w-[80px]">${m.id}</td><td class="p-1 border border-gray-300 text-xs">${noteStr}${matObj ? matObj.name.replace(m.id+' - ', '') : ''}</td><td class="p-1 border border-gray-300 text-center text-xs text-red-600 font-bold w-16">${m.qty}</td></tr>`;
                                     }).join('');
-                                    detailsHTML += `<strong class="text-moSide">📦 紀錄配料明細:</strong><table class="w-full text-xs text-left border-collapse border border-gray-300 mt-1 mb-3"><thead><tr class="bg-gray-100"><th class="p-1 border border-gray-300">物料編號</th><th class="p-1 border border-gray-300">品名</th><th class="p-1 border border-gray-300 text-center">預估用量</th></tr></thead><tbody>${bomRows}</tbody></table>`;
+                                    detailsHTML += `<strong class="text-moSide">📦 紀錄配料明細:</strong><table class="w-full text-xs text-left border-collapse border border-gray-300 mt-1 mb-3"><thead><tr class="bg-gray-100"><th class="p-1 border border-gray-300 w-[80px]">物料編號</th><th class="p-1 border border-gray-300">品名與加工備註</th><th class="p-1 border border-gray-300 text-center w-16">用量</th></tr></thead><tbody>${bomRows}</tbody></table>`;
                                 }
                             } catch(e){}
                         }
@@ -616,6 +616,11 @@
                         const totalColSpan = displayHeaders.length + 1;
                         tableHTML += `<tr id="btn_row_${index}" class="hidden bg-gray-50 border-b border-gray-200"><td colspan="${totalColSpan}" class="p-2 pl-12"><div class="flex flex-wrap items-center gap-4 text-xs">`;
                         
+                        // 【需求 3】將「查看」按鈕挪到最左邊第一順位
+                        if (detailsHTML !== '') {
+                            tableHTML += `<button id="btn_detail_${index}" onclick="toggleDetails('detail_${index}')" class="w-20 bg-gray-200 border border-gray-300 text-gray-700 py-1 rounded hover:bg-gray-300 font-bold">查看 ▼</button>`;
+                        }
+
                         let btnSlot1 = `<div class="w-20 text-gray-300">─</div>`; let btnSlot2 = `<div class="w-20 text-gray-300">─</div>`; let btnSlot3 = `<div class="w-20 text-gray-300">─</div>`; let btnSlot4 = `<div class="w-20 text-gray-300">─</div>`;
 
                         if (hasOpAuth) {
@@ -665,10 +670,11 @@
                         }
 
                         tableHTML += `${btnSlot1}${btnSlot2}${btnSlot3}${btnSlot4}`;
-                        if (detailsHTML !== '') tableHTML += `<button id="btn_detail_${index}" onclick="toggleDetails('detail_${index}')" class="w-20 bg-gray-100 border border-gray-300 text-gray-600 py-1 rounded hover:bg-gray-200 font-bold ml-auto">查看 ▼</button>`;
                         
-                        // 覆蓋原本編輯按鈕，加入刪單防呆邏輯
-                        if (hasEditAuth && currentSysName !== 'EQS') tableHTML += `<button onclick="openModal(${index})" class="w-20 border border-moSide text-moSide py-1 rounded hover:bg-gray-100 font-bold ${detailsHTML === '' ? 'ml-auto' : ''}">📝 編輯</button>`;
+                        // 【需求 3】編輯按鈕靠右對齊 (ml-auto)
+                        if (hasEditAuth && currentSysName !== 'EQS') {
+                            tableHTML += `<button onclick="openModal(${index})" class="w-20 border border-moSide text-moSide py-1 rounded hover:bg-gray-100 font-bold ml-auto">📝 編輯</button>`;
+                        }
                         
                         tableHTML += `</div></td></tr>`;
                         if (detailsHTML !== '') tableHTML += `<tr id="detail_${index}" class="hidden bg-gray-50"><td colspan="${totalColSpan}" class="p-5 text-sm border-l-4 border-moSide shadow-inner">${detailsHTML}</td></tr>`;
@@ -677,14 +683,11 @@
                 tableHTML += `</tbody></table></div>`;
             } else { tableHTML += `<div class="p-10 text-center text-gray-400 tracking-wider">目前工作表無表頭，請確認有建立欄位。</div>`; }
             
-            // 保持原本被分流的 EIP 看板
+            // 保持原本 EIP 獨立區塊
             if (currentSysName === 'EIP') {
                 let eipHtml = `<div class="p-6 bg-white border border-moBorder rounded-lg mt-6 shadow-sm"><div class="flex justify-between items-center mb-6"><h2 class="text-xl font-bold text-moSide border-l-4 border-moSide pl-2">工作交接清單</h2>`;
                 if(hasEditAuth) {
-                    eipHtml += `<div class="flex gap-2">`;
-                    eipHtml += `<button onclick="openModal()" class="bg-gray-200 hover:bg-gray-300 text-moSide px-4 py-2 rounded text-sm shadow">＋ 內部公告</button>`;
-                    eipHtml += `<button onclick="openHandoverModal()" class="bg-moSide hover:bg-gray-600 text-white px-4 py-2 rounded text-sm shadow">＋ 新增交接</button>`;
-                    eipHtml += `</div>`;
+                    eipHtml += `<div class="flex gap-2"><button onclick="openModal()" class="bg-gray-200 hover:bg-gray-300 text-moSide px-4 py-2 rounded text-sm shadow">＋ 內部公告</button><button onclick="openHandoverModal()" class="bg-moSide hover:bg-gray-600 text-white px-4 py-2 rounded text-sm shadow">＋ 新增交接</button></div>`;
                 }
                 eipHtml += `</div><div class="grid grid-cols-1 md:grid-cols-3 gap-4">`;
                 if(currentHandovers.length === 0) eipHtml += `<p class="text-gray-400 col-span-3 text-center py-4">目前無交接事項</p>`;
@@ -697,10 +700,7 @@
                         eipHtml += `<div class="p-4 rounded-lg border ${bg} relative shadow-sm flex flex-col">`;
                         if(hasEditAuth) eipHtml += `<button onclick="doDeleteHandover('${ho.time}', this)" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold text-lg leading-none">&times;</button>`;
                         eipHtml += `<div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="px-2 py-0.5 rounded text-xs font-bold text-white ${ho.priority==='高'?'bg-red-500':(ho.priority==='中'?'bg-yellow-500':'bg-green-500')}">${badge}</span><span class="text-xs text-gray-500">${ho.time}</span></div></div>`;
-                        eipHtml += `<p class="text-xs font-bold text-moSide mb-2 border-b border-gray-200 pb-1">接收人：${ho.assignee}</p>`;
-                        eipHtml += `<p class="${textCol} text-sm font-semibold whitespace-pre-wrap flex-1">${ho.content}</p>`;
-                        eipHtml += imgHtml;
-                        eipHtml += `<p class="text-xs text-gray-500 mt-3 text-right border-t border-white pt-2">- ${ho.creator}</p></div>`;
+                        eipHtml += `<p class="text-xs font-bold text-moSide mb-2 border-b border-gray-200 pb-1">接收人：${ho.assignee}</p><p class="${textCol} text-sm font-semibold whitespace-pre-wrap flex-1">${ho.content}</p>${imgHtml}<p class="text-xs text-gray-500 mt-3 text-right border-t border-white pt-2">- ${ho.creator}</p></div>`;
                     });
                 }
                 eipHtml += `</div></div>`; tableHTML += eipHtml;
@@ -708,7 +708,7 @@
 
             if (currentSysName === 'ERP') {
                 let totalInventoryValue = 0; let totalUnreceivedValue = 0;
-                currentTableData.forEach(row => { let stock = parseFloat(row['目前庫存']) || 0; let price = parseFloat(row['單價']) || 0; if(stock > 0) totalInventoryValue += (stock * price); });
+                currentTableData.forEach(row => { let stock = parseFloat(row['目前庫存']) || 0; let price = parseFloat(row['內價']) || parseFloat(row['單價']) || 0; if(stock > 0) totalInventoryValue += (stock * price); });
                 currentReplenish.forEach(rep => {
                     if (rep.status !== '已結案') {
                         let remainQty = (parseFloat(rep.reqQty) || 0) - (parseFloat(rep.inQty) || 0);
@@ -735,6 +735,18 @@
             }
 
             container.innerHTML = tableHTML;
+        }
+
+        function toggleRowButtons(idx, el) {
+            let btnRow = document.getElementById('btn_row_' + idx);
+            if(btnRow) {
+                btnRow.classList.toggle('hidden');
+                let isCollapse = btnRow.classList.contains('hidden'); el.innerText = isCollapse ? '▶' : '▼';
+                if(isCollapse) {
+                    let detailRow = document.getElementById('detail_' + idx); if(detailRow) detailRow.classList.add('hidden');
+                    let viewBtn = document.getElementById('btn_detail_' + idx); if(viewBtn) { viewBtn.innerText = '查看 ▼'; viewBtn.className = viewBtn.className.replace('bg-gray-300', 'bg-gray-200'); }
+                }
+            }
         }
 
         // 【修正 6】箭頭收展一體化聯動收回
@@ -2073,7 +2085,7 @@
             );
         }
 
-        // ================= 列印估價單 (修正：表頭改為「用量」) =================
+        // ================= 列印估價單 (需求 2 & 5) =================
         function doExecuteQuotation(index, includeDetails) {
             let row = currentTableData[index];
             let matHtml = '';
@@ -2084,9 +2096,12 @@
                     if (bom.length > 0) {
                         let mRows = bom.map(m => {
                             let matObj = (currentDropdowns['物料編號'] || []).find(opt => opt.id === m.id);
-                            return `<tr><td class="p-1.5 border border-gray-300 text-xs">${m.id}</td><td class="p-1.5 border border-gray-300 text-xs">${matObj ? matObj.name.replace(m.id+' - ', '') : '配套原料'}</td><td class="p-1.5 border border-gray-300 text-xs text-center font-bold">${m.qty}</td></tr>`;
+                            // 【需求 2】加工備註放至品名前
+                            let noteStr = m.note ? `<span style="color:#2563eb; font-weight:bold;">[${m.note}]</span> ` : '';
+                            return `<tr><td class="p-1.5 border border-gray-300 text-xs">${m.id}</td><td class="p-1.5 border border-gray-300 text-xs">${noteStr}${matObj ? matObj.name.replace(m.id+' - ', '') : '配套原料'}</td><td class="p-1.5 border border-gray-300 text-xs text-center font-bold">${m.qty}</td></tr>`;
                         }).join('');
-                        matHtml = `<h3 class="font-bold text-xs text-moSide mb-1 mt-4">📦 隨單預計消耗用料清單</h3><table class="w-full text-left border-collapse border border-gray-300 text-xs mb-4"><thead><tr class="bg-gray-50"><th class="p-1.5 border border-gray-300">物料編號</th><th class="p-1.5 border border-gray-300">名稱規格</th><th class="p-1.5 border border-gray-300 text-center">用量</th></tr></thead><tbody>${mRows}</tbody></table>`;
+                        // 【需求 5】鎖定料號寬度 (w-[80px])
+                        matHtml = `<h3 class="font-bold text-xs text-moSide mb-1 mt-4">📦 隨單預計消耗用料清單</h3><table class="w-full text-left border-collapse border border-gray-300 text-xs mb-4"><thead><tr class="bg-gray-50"><th class="p-1.5 border border-gray-300 w-[80px]">物料編號</th><th class="p-1.5 border border-gray-300">加工備註與品名規格</th><th class="p-1.5 border border-gray-300 text-center w-16">用量</th></tr></thead><tbody>${mRows}</tbody></table>`;
                     }
                 } catch(e){}
             }
@@ -2148,7 +2163,7 @@
             );
         }
 
-        // ================= 內部毛利試算表 (修正：底部結算區塊拉寬、字體加大) =================
+        // ================= 內部毛利試算表 (需求 1, 2, 5) =================
         function doExecuteMargin(index, includeDetails) {
             let row = currentTableData[index]; 
             let rev = parseFloat(row['總金額']||0) + parseFloat(row['運費報價']||0); 
@@ -2164,9 +2179,12 @@
                         let mRows = bom.map(m => {
                             let matObj = (currentDropdowns['物料編號'] || []).find(opt => opt.id === m.id); 
                             let uPrice = matObj ? parseFloat(matObj.price)||0 : 0;
-                            return `<tr><td class="p-1.5 border border-gray-300 font-mono">${m.id}</td><td class="p-1.5 border border-gray-300 text-[11px]">${matObj?matObj.name.replace(m.id+' - ', ''):'廠內耗材'}</td><td class="p-1.5 border border-gray-300 text-center font-bold">${m.qty}</td><td class="p-1.5 border border-gray-300 text-right">$ ${uPrice}</td><td class="p-1.5 border border-gray-300 text-right font-bold">$ ${(m.qty*uPrice).toLocaleString()}</td></tr>`;
+                            // 【需求 2】加工備註放至品名前
+                            let noteStr = m.note ? `<span style="color:#2563eb; font-weight:bold;">[${m.note}]</span> ` : '';
+                            return `<tr><td class="p-1.5 border border-gray-300 font-mono">${m.id}</td><td class="p-1.5 border border-gray-300 text-[11px]">${noteStr}${matObj?matObj.name.replace(m.id+' - ', ''):'廠內耗材'}</td><td class="p-1.5 border border-gray-300 text-center font-bold">${m.qty}</td><td class="p-1.5 border border-gray-300 text-right">$ ${uPrice}</td><td class="p-1.5 border border-gray-300 text-right font-bold">$ ${(m.qty*uPrice).toLocaleString()}</td></tr>`;
                         }).join('');
-                        matHtml = `<h3 class="font-bold text-xs text-moSide mb-1 mt-4">📋 生產精算用料成本分攤明細</h3><table class="w-full text-left border-collapse border border-gray-300 text-xs mb-4"><thead><tr class="bg-gray-50"><th class="p-1.5 border border-gray-300">物料代號</th><th class="p-1.5 border border-gray-300">品名規格</th><th class="p-1.5 border border-gray-300 text-center">用量</th><th class="p-1.5 border border-gray-300 text-right">材料單價</th><th class="p-1.5 border border-gray-300 text-right">成本小計</th></tr></thead><tbody>${mRows}</tbody></table>`;
+                        // 【需求 5】鎖定料號寬度 (w-[80px])
+                        matHtml = `<h3 class="font-bold text-xs text-moSide mb-1 mt-4">📋 生產精算用料成本分攤明細</h3><table class="w-full text-left border-collapse border border-gray-300 text-xs mb-4"><thead><tr class="bg-gray-50"><th class="p-1.5 border border-gray-300 w-[80px]">物料代號</th><th class="p-1.5 border border-gray-300">加工備註與品名規格</th><th class="p-1.5 border border-gray-300 text-center w-16">用量</th><th class="p-1.5 border border-gray-300 text-right w-20">材料單價</th><th class="p-1.5 border border-gray-300 text-right w-24">成本小計</th></tr></thead><tbody>${mRows}</tbody></table>`;
                     }
                 } catch(e){}
             }
@@ -2208,7 +2226,7 @@
                     
                     <div class="mt-4 p-5 bg-moSide text-white rounded-lg shadow-md border grid grid-cols-2 divide-x divide-white divide-opacity-30">
                         <div class="text-center">
-                            <h3 class="text-sm font-bold opacity-90 mb-1">預估專案淨毛利</h3>
+                            <h3 class="text-sm font-bold opacity-90 mb-1">預估專案毛利</h3>
                             <p class="text-2xl font-bold tracking-wider">$ ${profit.toLocaleString()}</p>
                         </div>
                         <div class="text-center">
