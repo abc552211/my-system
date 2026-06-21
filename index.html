@@ -1148,47 +1148,67 @@
             if(!hasMats) container.innerHTML = '<p class="text-xs text-gray-400 p-2 bg-gray-50 rounded">此單尚無領料紀錄。</p>';
         }
 
-        // ================= 扣料視窗開啟與歷史配料帶入 (修正版：扣料保留頂部資訊做最終核對) =================
+        // ================= 扣料視窗開啟與歷史配料帶入 (修正：解鎖追加與重工模式) =================
         function openMatModal(orderId, actionType) {
             document.getElementById('matOrderId').innerText = orderId;
             document.getElementById('matActionType').value = actionType;
             document.getElementById('matList').innerHTML = '';
             
             const isEst = (actionType === 'estimate');
+            const isNormal = (actionType === 'normal');
+            const isAddonOrRework = (actionType === 'addon' || actionType === 'rework');
             
-            // 【修正】無論估價或扣料，一律顯示頂部商務數值群組，供最後防呆核對
-            document.getElementById('estTopBusinessGroup').classList.remove('hidden');
+            // 只有 normal (實體扣料確認) 時才是全域唯讀。estimate, addon, rework 配料區皆可編輯。
+            const isReadOnly = isNormal;
+
+            // 追加/重工時，隱藏頂部商務金額區 (因為不影響原單總報價)
+            document.getElementById('estTopBusinessGroup').classList.toggle('hidden', isAddonOrRework);
             
-            document.getElementById('matModalTitle').innerText = isEst ? "📐 訂單配料成本與商務估價" : "📦 最終確認：檢視配料與執行實體扣料";
-            document.getElementById('matSubmitBtn').innerText = isEst ? "儲存估價配料" : "確認配料無誤，執行扣料";
-            document.getElementById('addMatBtn').classList.toggle('hidden', !isEst);
+            let title = "📐 訂單配料成本與商務估價";
+            let btnText = "儲存估價配料";
+            if (isNormal) { title = "📦 最終確認：檢視配料與執行實體扣料"; btnText = "確認配料無誤，執行扣料"; }
+            if (actionType === 'addon') { title = "➕ 追加備料扣料"; btnText = "確認追加並扣料"; }
+            if (actionType === 'rework') { title = "🔄 重工備料扣料"; btnText = "確認重工並扣料"; }
+
+            document.getElementById('matModalTitle').innerText = title;
+            document.getElementById('matSubmitBtn').innerText = btnText;
+            document.getElementById('addMatBtn').classList.toggle('hidden', isReadOnly);
 
             let rowData = currentTableData.find(r => r['訂單編號'] === orderId) || {};
             
-            // 載入先前的商務數值與備註
             document.getElementById('estQty').value = rowData['數量'] || 1;
-            document.getElementById('estUnitPrice').value = rowData['單價'] || 0; // 必須把原本存好的單價帶進來
+            document.getElementById('estUnitPrice').value = rowData['單價'] || 0;
             document.getElementById('estFreightCost').value = rowData['運費成本'] || 0;
             document.getElementById('estFreightPrice').value = rowData['運費報價'] || 0;
             document.getElementById('estFinalDetailsText').value = rowData['訂單細項'] || '';
-            document.getElementById('estFinalDetailsText').disabled = !isEst; // 扣料時只能看不能改
+            document.getElementById('estFinalDetailsText').disabled = isReadOnly;
 
-            // 解析歷史配料明細
             let savedMats = [];
             try { savedMats = JSON.parse(rowData['配料明細'] || '[]'); } catch(e){}
 
-            if (savedMats.length > 0) {
+            // 【邏輯修正】估價與正常扣料會帶入「歷史配料」。追加與重工必須是「空表」，讓使用者自己加！
+            if ((isEst || isNormal) && savedMats.length > 0) {
                 savedMats.forEach(m => {
                     let matObj = (currentDropdowns['物料編號']||[]).find(opt => opt.id === m.id);
-                    addMatRow(m.id, m.qty, matObj ? matObj.name.replace(m.id+' - ', '') : '');
+                    addMatRow(m.id, m.qty, matObj ? matObj.name.replace(m.id+' - ', '') : '', m.note || '');
                 });
             } else {
                 addMatRow();
             }
 
-            // 【修正防呆】若為扣料確認模式，鎖定「上方商務欄位」與「配料清單」所有輸入框
+            // 【防呆鎖定分流】
             setTimeout(() => {
-                document.querySelectorAll('#estTopBusinessGroup input, .mat-row input, .mat-row button').forEach(el => { el.disabled = !isEst; });
+                if (isReadOnly) {
+                    // 實體扣料確認：全部鎖死只能看
+                    document.querySelectorAll('#estTopBusinessGroup input, .mat-row input, .mat-row button').forEach(el => { el.disabled = true; });
+                } else if (isAddonOrRework) {
+                    // 追加/重工：鎖定商務金額區，但開放配料區可以新增/編輯
+                    document.querySelectorAll('#estTopBusinessGroup input').forEach(el => { el.disabled = true; });
+                    document.querySelectorAll('.mat-row input, .mat-row button').forEach(el => { el.disabled = false; });
+                } else {
+                    // 估價模式：全部開放
+                    document.querySelectorAll('#estTopBusinessGroup input, .mat-row input, .mat-row button').forEach(el => { el.disabled = false; });
+                }
                 calcMatCost();
             }, 100);
 
@@ -1527,8 +1547,53 @@
                 document.getElementById('input_物料編號').value = supId + 'K' + nextK;
             }
         }
+        // ================= ERP 智慧物料編號產生器 (支援 999 -> A01 -> ZA1) =================
+        function getNextErpSuffix(currentSuffix) {
+            if (/^\d{3}$/.test(currentSuffix)) {
+                let num = parseInt(currentSuffix, 10);
+                if (num < 999) return String(num + 1).padStart(3, '0');
+                return 'A01';
+            }
+            if (/^[A-Z]\d{2}$/.test(currentSuffix)) {
+                let c = currentSuffix[0]; let num = parseInt(currentSuffix.substring(1), 10);
+                if (num < 99) return c + String(num + 1).padStart(2, '0');
+                if (c === 'Z') return 'ZA1';
+                return String.fromCharCode(c.charCodeAt(0) + 1) + '01';
+            }
+            if (/^Z[A-Z]\d$/.test(currentSuffix)) {
+                let c = currentSuffix[1]; let num = parseInt(currentSuffix[2], 10);
+                if (num < 9) return 'Z' + c + (num + 1);
+                if (c === 'Z') return null; // 容量已滿
+                return 'Z' + String.fromCharCode(c.charCodeAt(0) + 1) + '1';
+            }
+            return '001';
+        }
 
-        // ================= OMS 新增與編輯表單精準修正 =================
+        function generateErpMatId(supName) {
+            if(currentSysName !== 'ERP' || editingRowIndex !== -1) return;
+            let supMap = currentDropdowns['供應商Mapping'] || {};
+            let supId = supMap[supName];
+            if(!supId) {
+                document.getElementById('input_供應商編號').value = ''; document.getElementById('input_物料編號').value = ''; return;
+            }
+            document.getElementById('input_供應商編號').value = supId;
+            let existingIds = currentTableData.map(r => r['物料編號']).filter(id => id && id.startsWith(supId)).sort();
+            
+            let highestSuffix = '000'; let prefix = supId + 'K';
+            if (existingIds.length > 0) {
+                let lastId = existingIds[existingIds.length - 1];
+                prefix = lastId.substring(0, lastId.length - 3);
+                highestSuffix = lastId.substring(lastId.length - 3);
+            }
+            let nextSuffix = getNextErpSuffix(highestSuffix);
+            if(!nextSuffix) {
+                alert("⚠️ 該供應商物料編號已達上限 (ZZ9)！"); document.getElementById('input_物料編號').value = '';
+            } else {
+                document.getElementById('input_物料編號').value = prefix + nextSuffix;
+            }
+        }
+
+        // ================= OMS 新增與編輯表單精準修正 (含 ERP 供應商連動) =================
         function openModal(rowIndex = -1) {
             editingRowIndex = rowIndex; 
             document.getElementById('modalTitle').innerText = rowIndex !== -1 ? `編輯資料` : `新增資料`;
@@ -1567,6 +1632,19 @@
                 else if (header === '訂單狀態' && rowIndex === -1 && currentSysName === 'OMS') {
                     fieldHTML += `<input type="text" id="input_${header}" readonly value="估算中" class="w-full p-2 border bg-gray-100 text-gray-500 font-bold cursor-not-allowed">`;
                 }
+                // 【修復】ERP 專屬：供應商編號反灰、物料編號自動生成、選擇供應商觸發連動
+                else if (header === '供應商編號' && currentSysName === 'ERP') {
+                    fieldHTML += `<input type="text" id="input_${header}" value="${val}" readonly class="w-full p-2 border bg-gray-100 text-gray-400 cursor-not-allowed" placeholder="選擇供應商後自動帶出">`;
+                }
+                else if (header === '物料編號' && currentSysName === 'ERP' && rowIndex === -1) {
+                    fieldHTML += `<input type="text" id="input_${header}" readonly class="w-full p-2 border bg-gray-100 text-gray-400 cursor-not-allowed" placeholder="依供應商自動生成">`;
+                }
+                else if (header === '供應商' && currentSysName === 'ERP' && rowIndex === -1) {
+                    let listId = 'dl_' + header; 
+                    let optHtml = Object.keys(currentDropdowns['供應商Mapping'] || {}).map(opt => `<option value="${opt}"></option>`).join('');
+                    fieldHTML += `<input list="${listId}" id="input_${header}" oninput="generateErpMatId(this.value)" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide" placeholder="搜尋並選擇供應商..."><datalist id="${listId}">${optHtml}</datalist>`;
+                }
+                // 一般系統的下拉選單 (非 ERP 新增狀態下的供應商也會走這裡)
                 else if ((header === '客戶名稱' || header === '公司名稱' || header === '產品名稱' || header === '供應商') && currentDropdowns[header]) {
                     let listId = 'dl_' + header; let optHtml = currentDropdowns[header].map(opt => `<option value="${opt}"></option>`).join('');
                     fieldHTML += `<input list="${listId}" id="input_${header}" value="${val}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide" placeholder="輸入關鍵字搜尋..."><datalist id="${listId}">${optHtml}</datalist>`;
