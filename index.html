@@ -1153,7 +1153,7 @@
             if(!hasMats) container.innerHTML = '<p class="text-xs text-gray-400 p-2 bg-gray-50 rounded">此單尚無領料紀錄。</p>';
         }
 
-        // ================= 扣料視窗開啟與歷史配料帶入 (相容良率基準值) =================
+        // ================= 扣料視窗開啟與歷史配料帶入 (精準讀取良率) =================
         function openMatModal(orderId, actionType) {
             document.getElementById('matOrderId').innerText = orderId;
             document.getElementById('matActionType').value = actionType;
@@ -1177,9 +1177,11 @@
 
             let rowData = currentTableData.find(r => r['訂單編號'] === orderId) || {};
             
+            // 【核心修正】直接讀取試算表存好的良率，如果沒有才預設 100
             let targetQty = parseFloat(rowData['數量']) || 1;
+            let yieldRate = parseFloat(rowData['預估良率']); 
+            if(isNaN(yieldRate)) yieldRate = 100;
             let prodQty = parseFloat(rowData['訂購數量']) || targetQty;
-            let yieldRate = targetQty >= prodQty ? 100 : Math.round((targetQty / prodQty) * 100);
             
             document.getElementById('estTargetQty').value = targetQty;
             document.getElementById('estYieldRate').value = yieldRate;
@@ -1197,7 +1199,6 @@
             if ((isEst || isNormal) && savedMats.length > 0) {
                 savedMats.forEach(m => {
                     let matObj = (currentDropdowns['物料編號']||[]).find(opt => opt.id === m.id);
-                    // 優先讀取 100% 基準用量 (baseQty)，相容舊版資料的 qty
                     let bq = m.baseQty !== undefined ? m.baseQty : m.qty;
                     addMatRow(m.id, bq, matObj ? matObj.name.replace(m.id+' - ', '') : '', m.note || '');
                 });
@@ -1298,7 +1299,7 @@
         }
         
 
-        // ================= 送出表單與打包資料 (精準傳送實際扣料量) =================
+        // ================= 送出表單與打包資料 (加入良率傳送) =================
         function submitMaterialCheck(btn) {
             const orderId = document.getElementById('matOrderId').innerText;
             const actionType = document.getElementById('matActionType').value;
@@ -1312,13 +1313,11 @@
                 let noteInput = rows[i].querySelector('.mat-note');
                 
                 if(input && qtyInput && input.value && qtyInput.value) { 
-                    // 抓取精算過後的實際需扣數量
                     let actualQ = rows[i].getAttribute('data-actual-qty') || qtyInput.value;
-                    
                     matArr.push({ 
                         id: input.value.split(' ')[0], 
-                        qty: actualQ,            // 傳給後端扣庫存用的真實數量 (放大了)
-                        baseQty: qtyInput.value, // 存入 JSON 方便下次編輯時還原 100% 基準值
+                        qty: actualQ,            
+                        baseQty: qtyInput.value, 
                         note: noteInput ? noteInput.value : '' 
                     }); 
                 } 
@@ -1331,12 +1330,13 @@
             if(actionType === 'estimate') {
                 estParams = {
                     targetQty: document.getElementById('estTargetQty').value,
+                    yieldRate: document.getElementById('estYieldRate').value, // 【核心新增】精確打包良率
                     qty: document.getElementById('estQty').value, 
                     unitPrice: parseFloat(document.getElementById('estUnitPrice').innerText.replace(/[^0-9.-]+/g,"")) || 0,
                     totalAmount: parseFloat(document.getElementById('estTotalProductSum').innerText.replace(/[^0-9.-]+/g,"")) || 0,
                     freightCost: document.getElementById('estFreightCost').value,
                     freightPrice: document.getElementById('estFreightPrice').value,
-                    freightNote: '',
+                    freightNote: '', 
                     details: document.getElementById('estFinalDetailsText').value
                 };
             }
@@ -1361,7 +1361,6 @@
             }).withFailureHandler(err => { alert('系統異常：'+err); btn.innerHTML = actionType==='estimate'?'儲存估價配料':'確認無誤，執行扣料'; btn.disabled = false; })
               .checkAndDeductMaterials(orderId, matArr, (actionType !== 'estimate'), actionType, '', op, estParams);
         }
-
         // 嚮導下一步或最終送出智慧分流器
         function handleEstNextOrSubmit(btn) {
             const actionType = document.getElementById('matActionType').value;
