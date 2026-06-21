@@ -2382,7 +2382,7 @@
             }).shipOrderAndWo(woId, oId, trackId, op);
         }
 
-        // ================= 10分鐘早會專用報告生成 =================
+        // ================= 10分鐘早會專用報告生成 (修正：改為當前待辦統計) =================
         function generateMorningReport() {
             document.getElementById('tableContainer').innerHTML = `<div class="p-20 text-center"><div class="w-10 h-10 border-4 border-moSide border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>正在彙整全廠各線數據...</div>`;
             
@@ -2409,7 +2409,8 @@
                         
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div class="border border-gray-300 rounded p-3 bg-gray-50 shadow-sm">
-                                <h3 class="font-bold text-xs text-gray-700 border-b border-gray-300 pb-1 mb-2">📋 今日交接與待辦數量</h3>
+                                <!-- 【修正】將「今日」改為「當前」待辦 -->
+                                <h3 class="font-bold text-xs text-gray-700 border-b border-gray-300 pb-1 mb-2">📋 當前待辦交接數量</h3>
                                 <div class="flex justify-between text-xs mb-1"><span>急件 / 高優先：</span><span class="text-red-600 font-bold text-sm">${res.handovers.high} 筆</span></div>
                                 <div class="flex justify-between text-xs mb-1"><span>中優先級：</span><span class="text-yellow-600 font-bold">${res.handovers.mid} 筆</span></div>
                                 <div class="flex justify-between text-xs"><span>一般交接：</span><span class="text-green-600 font-bold">${res.handovers.low} 筆</span></div>
