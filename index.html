@@ -1231,7 +1231,7 @@
             if(initVal) filterMatOptions(div.querySelector('.mat-sel-input'), listId);
         }
 
-        // ================= 良率與智慧金額自動精算 =================
+        // ================= 良率與智慧金額自動精算 (修正：依實際投產量計算單價與總額) =================
         function calcMatCost() {
             // 計算良率與投產量
             let targetQty = parseFloat(document.getElementById('estTargetQty').value) || 1;
@@ -1253,7 +1253,8 @@
             });
             document.getElementById('matTotalCost').innerText = matTotalCost.toLocaleString();
 
-            let autoUnitPrice = Math.round(matTotalSell / targetQty) || 0;
+            // 【修正 1】平均單價改由「實際投產量」來做分母
+            let autoUnitPrice = Math.round(matTotalSell / prodQty) || 0;
             if(document.getElementById('matActionType').value === 'estimate') {
                 document.getElementById('estUnitPrice').innerText = "$ " + autoUnitPrice.toLocaleString();
             }
@@ -1262,7 +1263,8 @@
             let fCost = parseFloat(document.getElementById('estFreightCost').value || 0);
             let fPrice = parseFloat(document.getElementById('estFreightPrice').value || 0);
 
-            let productSum = targetQty * currentUnitPrice;
+            // 【修正 2】產品總價改由「實際投產量」乘以單價，確保不虧損良率成本
+            let productSum = prodQty * currentUnitPrice;
             let totalRevenue = productSum + fPrice;
             let totalCost = matTotalCost + fCost;
             let netProfit = totalRevenue - totalCost;
@@ -1272,7 +1274,6 @@
             profitEl.innerText = "$ " + netProfit.toLocaleString();
             profitEl.className = netProfit >= 0 ? "text-green-600 font-bold text-xl leading-relaxed" : "text-red-600 font-bold text-xl leading-relaxed";
         }
-
         // 嚮導下一步或最終送出智慧分流器
         function handleEstNextOrSubmit(btn) {
             const actionType = document.getElementById('matActionType').value;
