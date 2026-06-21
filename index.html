@@ -520,6 +520,24 @@
         // 全域排序狀態暫存
         let currentSortCol = ''; let currentSortDir = 'asc';
 
+        // ================= 查看/收合按鈕強固切換引擎 (完美修復點不開) =================
+        function toggleDetails(rowId) { 
+            const row = document.getElementById(rowId); 
+            const btn = document.querySelector(`button[onclick="toggleDetails('${rowId}')"]`);
+            if(!row) return;
+            
+            row.classList.toggle('hidden');
+            if(!btn) return;
+            
+            if(!row.classList.contains('hidden')) { 
+                btn.innerText = '收合 ▲'; 
+                btn.className = "w-20 bg-gray-300 border border-gray-300 text-gray-800 py-1 rounded font-bold shadow-inner transition-colors";
+            } else { 
+                btn.innerText = '查看 ▼'; 
+                btn.className = "w-20 bg-gray-200 border border-gray-300 text-gray-700 py-1 rounded font-bold hover:bg-gray-300 transition-colors";
+            }
+        }
+
         // ================= 智慧隱藏展開、欄位下收收合面板、與狀態控制渲染器 =================
         function renderTable(data, hasOpAuth, hasEditAuth) {
             const container = document.getElementById('tableContainer');
@@ -568,23 +586,16 @@
                 if(!currentHandovers || currentHandovers.length === 0) {
                     eipHtml += `<p class="text-gray-400 text-center py-8 bg-gray-50 rounded-lg border border-dashed">目前無掛載交接事項</p>`;
                 } else {
-                    // 【新增核心邏輯】雙重排序引擎：1. 分級高優先， 2. 時間早優先
                     const priorityWeight = { '高': 1, '中': 2, '低': 3 };
                     let sortedHandovers = [...currentHandovers].sort((a, b) => {
                         let pA = priorityWeight[a.priority] || 4;
                         let pB = priorityWeight[b.priority] || 4;
-                        
-                        // 條件一：優先級不同時，數字越小(高)越排前面
                         if (pA !== pB) return pA - pB;
-                        
-                        // 條件二：優先級相同時，時間越早越排前面
-                        // 取代 '-' 為 '/' 是為了相容 iOS/Safari 瀏覽器的時間解析防呆
                         let tA = new Date(a.time.replace(/-/g, '/')).getTime();
                         let tB = new Date(b.time.replace(/-/g, '/')).getTime();
                         return tA - tB;
                     });
 
-                    // 使用排序後的陣列渲染畫面
                     sortedHandovers.forEach(ho => {
                         let bg = 'bg-white border-gray-200'; let badgeColor = 'bg-green-500';
                         if(ho.priority === '高') { bg = 'bg-red-50/40 border-red-200'; badgeColor = 'bg-red-500'; }
@@ -628,7 +639,7 @@
             let tableHTML = `<div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead class="bg-gray-100 text-moSide border-b border-gray-300"><tr>`;
             let displayHeaders = (currentSheet === '權限管理' || currentSysName === 'SYS') 
                 ? currentHeaders.filter(h => h !== '可視系統' && h !== '可操作系統' && h !== '可編輯系統') 
-                : currentHeaders.filter(h => h !== '配料明細');
+                : currentHeaders.filter(h => h !== '配料明細' && h !== '工序明細');
 
             const omsHideHeaders = ['數量', '預估良率', '產出量', '預估成本', '運費成本', '運費報價', '運費備註'];
             if (currentSysName === 'OMS') { displayHeaders = displayHeaders.filter(h => !omsHideHeaders.includes(h)); }
@@ -716,39 +727,52 @@
                         });
                         bizHtml += `</div>`; detailsHTML = bizHtml + detailsHTML;
 
-                        // ================= 【需求 3】在 OMS 查看面板顯示每一道工序的進度與耗時 =================
+                        // ================= 【一單到底：JSON工序明細深度解析追蹤】 =================
                         let woLogs = currentAllWos.filter(w => w['關聯訂單'] === row['訂單編號']);
                         if(woLogs.length > 0) {
-                            // 確保依照工序順序排列
-                            woLogs.sort((a, b) => (parseInt(a['工序順序']) || 0) - (parseInt(b['工序順序']) || 0));
-                            
-                            let woRows = woLogs.map(w => {
-                                let statusColor = w['工單狀態'] === '已完工' || w['工單狀態'] === '已出貨' ? 'text-green-600' : (w['工單狀態'] === '生產中' ? 'text-blue-600 animate-pulse' : 'text-gray-500');
-                                let timeText = w['完成日期'] || '-';
+                            let woRows = '';
+                            woLogs.forEach(w => {
+                                var steps = [];
+                                try { steps = JSON.parse(w['工序明細'] || "[]"); } catch(e){}
+                                let currentIdx = parseInt(w['當前進度索引']) || 0;
+                                let globalWoStatus = w['工單狀態'];
                                 
-                                return `<tr class="hover:bg-indigo-50 transition-colors">
-                                    <td class="p-2 border-b border-gray-200 text-center font-bold text-gray-500">${w['工序順序'] || '-'}</td>
-                                    <td class="p-2 border-b border-gray-200 font-bold text-moSide">${w['工序名稱'] || '-'} <br><span class="text-[10px] font-normal text-gray-400">設備: ${w['作業機台']}</span></td>
-                                    <td class="p-2 border-b border-gray-200 text-center">${w['員工姓名'] || '-'}</td>
-                                    <td class="p-2 border-b border-gray-200 text-center font-bold ${statusColor}">${w['工單狀態']}</td>
-                                    <td class="p-2 border-b border-gray-200 text-center text-xs text-gray-500 font-mono">${timeText}</td>
-                                </tr>`;
-                            }).join('');
+                                if (steps.length > 0) {
+                                    steps.forEach((s, idx) => {
+                                        let stepStatus = '等待中';
+                                        if (globalWoStatus === '已完工' || globalWoStatus === '已出貨' || idx < currentIdx) stepStatus = '已完工';
+                                        else if (idx === currentIdx && globalWoStatus === '生產中') stepStatus = '生產中';
+                                        else if (idx === currentIdx && globalWoStatus === '已停工') stepStatus = '已停工';
+                                        
+                                        let statusColor = stepStatus === '已完工' ? 'text-green-600 font-bold' : (stepStatus === '生產中' ? 'text-blue-600 font-bold animate-pulse' : (stepStatus === '已停工' ? 'text-red-600 font-bold' : 'text-gray-400'));
+                                        
+                                        woRows += `<tr class="hover:bg-indigo-50 transition-colors">
+                                            <td class="p-2 border-b border-gray-200 text-center font-bold text-gray-500">${idx + 1}</td>
+                                            <td class="p-2 border-b border-gray-200 font-bold text-moSide">${s.name} <br><span class="text-[10px] font-normal text-gray-400">工序機台: ${s.mac}</span></td>
+                                            <td class="p-2 border-b border-gray-200 text-center">${s.emp}</td>
+                                            <td class="p-2 border-b border-gray-200 text-center ${statusColor}">${stepStatus}</td>
+                                            <td class="p-2 border-b border-gray-200 text-center text-xs text-gray-500 font-mono">${s.date}</td>
+                                        </tr>`;
+                                    });
+                                }
+                            });
                             
-                            detailsHTML += `
-                                <strong class="text-moSide block mt-4 mb-2">🏭 工序生產追蹤與排程明細:</strong>
-                                <table class="w-full text-xs text-left border-collapse border border-gray-300 mb-3 bg-white shadow-sm rounded overflow-hidden">
-                                    <thead>
-                                        <tr class="bg-indigo-50 text-indigo-800 border-b border-indigo-200">
-                                            <th class="p-2 w-10 text-center">順序</th>
-                                            <th class="p-2">工序與機台</th>
-                                            <th class="p-2 w-20 text-center">操作人員</th>
-                                            <th class="p-2 w-20 text-center">當前狀態</th>
-                                            <th class="p-2 w-24 text-center">排程/完工日</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>${woRows}</tbody>
-                                </table>`;
+                            if (woRows !== '') {
+                                detailsHTML += `
+                                    <strong class="text-moSide block mt-4 mb-2">🏭 單一工單流線追蹤與工序進度:</strong>
+                                    <table class="w-full text-xs text-left border-collapse border border-gray-300 mb-3 bg-white shadow-sm rounded overflow-hidden">
+                                        <thead>
+                                            <tr class="bg-indigo-50 text-indigo-800 border-b border-indigo-200">
+                                                <th class="p-2 w-10 text-center">順序</th>
+                                                <th class="p-2">執行工序與對應機台</th>
+                                                <th class="p-2 w-20 text-center">操作人員</th>
+                                                <th class="p-2 w-20 text-center">當前狀態</th>
+                                                <th class="p-2 w-24 text-center">排程/完工日</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>${woRows}</tbody>
+                                    </table>`;
+                            }
                         }
                     }
 
@@ -770,7 +794,7 @@
                         }
                         else if (currentSysName === 'MES') {
                             const status = row['工單狀態']; const mac = row['作業機台']; const woId = row['工單編號']; const oId = row['關聯訂單'];
-                            if (status === '生產中') { btnSlot1 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 font-bold">🔧 報修</button>`; btnSlot2 = `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold">🛑 停工</button>`; btnSlot3 = `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-blue-600 text-white py-1 rounded hover:bg-blue-700 font-bold">🏁 完工</button>`; } 
+                            if (status === '生產中') { btnSlot1 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 font-bold">🔧 報修</button>`; btnSlot2 = `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold">🛑 停工</button>`; btnSlot3 = `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-blue-600 text-white py-1 rounded hover:bg-blue-700 font-bold shadow-sm">🏁 完成工序</button>`; } 
                             else if (status === '已完工') { btnSlot4 = `<button onclick="openShippingModal('${woId}', '${oId}')" class="w-20 bg-emerald-600 text-white py-1 rounded hover:bg-emerald-700 font-bold shadow animate-pulse">🚚 出貨</button>`; } 
                             else if (status === '已出貨') { btnSlot4 = `<span class="text-gray-400 font-bold w-20 text-center">已出貨結案</span>`; }
                         }
@@ -786,6 +810,9 @@
                     tableHTML += `${btnSlot1}${btnSlot2}${btnSlot3}${btnSlot4}`;
                     if (hasEditAuth && currentSysName !== 'EQS') { tableHTML += `<button onclick="openModal(${index})" class="w-20 border border-moSide text-moSide py-1 rounded font-bold ml-auto">📝 編輯</button>`; }
                     tableHTML += `</div></td></tr>`;
+
+                    // 【核心修復點】動態產生給 toggleDetails 控制的明細 Tr 容器，確保查看面板完全開啟！
+                    if (detailsHTML !== '') tableHTML += `<tr id="detail_${index}" class="hidden bg-gray-50"><td colspan="${totalColSpan}" class="p-5 text-sm border-l-4 border-moSide shadow-inner">${detailsHTML}</td></tr>`;
                 });
             }
             tableHTML += `</tbody></table></div>`;
@@ -797,18 +824,6 @@
                 tableHTML = `<div class="mb-4 bg-white p-5 rounded-lg border shadow-sm"><span>總實際庫存金額</span><span class="text-2xl font-bold block" ${maskStr1}</span></div>` + tableHTML; 
             }
             container.innerHTML = tableHTML;
-        }
-
-        function toggleRowButtons(idx, el) {
-            let btnRow = document.getElementById('btn_row_' + idx);
-            if(btnRow) {
-                btnRow.classList.toggle('hidden');
-                let isCollapse = btnRow.classList.contains('hidden'); el.innerText = isCollapse ? '▶' : '▼';
-                if(isCollapse) {
-                    let detailRow = document.getElementById('detail_' + idx); if(detailRow) detailRow.classList.add('hidden');
-                    let viewBtn = document.getElementById('btn_detail_' + idx); if(viewBtn) { viewBtn.innerText = '查看 ▼'; viewBtn.className = viewBtn.className.replace('bg-gray-300', 'bg-gray-200'); }
-                }
-            }
         }
 
         // 【修正 6】箭頭收展一體化聯動收回
@@ -1836,7 +1851,7 @@
             }
         }
 
-        // ================= OMS 新增與編輯表單精準修正 (含 ERP 供應商連動) =================
+        // ================= 【需求 1】OMS 新增時隱藏預估良率 =================
         function openModal(rowIndex = -1) {
             editingRowIndex = rowIndex; 
             document.getElementById('modalTitle').innerText = rowIndex !== -1 ? `編輯資料` : `新增資料`;
@@ -1851,12 +1866,12 @@
             currentHeaders.forEach(header => {
                 if (isSysAuth && (header === '可視系統' || header === '可編輯系統' || header === '可操作系統')) return; 
 
-                // 隱藏不需要在新增時看到的欄位 (包含產出量)
+                // 【修正核心】隱藏不需要在新增時看到的欄位 (包含「預估良率」)
                 if (currentSysName === 'OMS' && rowIndex === -1) {
-                    const hideOnAdd = ['單價', '數量', '訂購數量', '總金額', '運費報價', '運費備註', '運費成本', '預估成本', '產出量', '配料明細'];
+                    const hideOnAdd = ['單價', '數量', '訂購數量', '總金額', '運費報價', '運費備註', '運費成本', '預估成本', '產出量', '配料明細', '預估良率'];
                     if (hideOnAdd.includes(header)) return;
                 }
-                if (header === '配料明細') return; // 隱藏後端資料欄位
+                if (header === '配料明細') return; 
 
                 const val = rowData[header] || '';
                 let fieldHTML = `<div><label class="block text-sm font-bold mb-1">${header}</label>`;
@@ -1875,7 +1890,6 @@
                 else if (header === '訂單狀態' && rowIndex === -1 && currentSysName === 'OMS') {
                     fieldHTML += `<input type="text" id="input_${header}" readonly value="估算中" class="w-full p-2 border bg-gray-100 text-gray-500 font-bold cursor-not-allowed">`;
                 }
-                // 【修復】ERP 專屬：供應商編號反灰、物料編號自動生成、選擇供應商觸發連動
                 else if (header === '供應商編號' && currentSysName === 'ERP') {
                     fieldHTML += `<input type="text" id="input_${header}" value="${val}" readonly class="w-full p-2 border bg-gray-100 text-gray-400 cursor-not-allowed" placeholder="選擇供應商後自動帶出">`;
                 }
@@ -1887,10 +1901,13 @@
                     let optHtml = Object.keys(currentDropdowns['供應商Mapping'] || {}).map(opt => `<option value="${opt}"></option>`).join('');
                     fieldHTML += `<input list="${listId}" id="input_${header}" oninput="generateErpMatId(this.value)" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide" placeholder="搜尋並選擇供應商..."><datalist id="${listId}">${optHtml}</datalist>`;
                 }
-                // 一般系統的下拉選單 (非 ERP 新增狀態下的供應商也會走這裡)
                 else if ((header === '客戶名稱' || header === '公司名稱' || header === '產品名稱' || header === '供應商') && currentDropdowns[header]) {
                     let listId = 'dl_' + header; let optHtml = currentDropdowns[header].map(opt => `<option value="${opt}"></option>`).join('');
                     fieldHTML += `<input list="${listId}" id="input_${header}" value="${val}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide" placeholder="輸入關鍵字搜尋..."><datalist id="${listId}">${optHtml}</datalist>`;
+                }
+                // 【需求 5 補充】產線容量數字防呆
+                else if (header === '產線容量' && currentSysName === 'EQM') {
+                    fieldHTML += `<input type="number" min="1" id="input_${header}" value="${val || 1}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">`;
                 }
                 else if (header.includes('日期') || header.includes('交期')) {
                     let d = val || new Date(new Date().getTime() + 8*60*60*1000).toISOString().split('T')[0];
@@ -1898,10 +1915,6 @@
                 }
                 else if (header.includes('內容') || header.includes('備註') || header.includes('細項') || header.includes('簡述')) {
                     fieldHTML += `<textarea id="input_${header}" style="min-height:90px; max-height:280px; resize:vertical;" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">${val}</textarea>`;
-                }
-                    // 【新增】EQM 產線容量專屬數字防呆輸入框
-                else if (header === '產線容量' && currentSysName === 'EQM') {
-                    fieldHTML += `<input type="number" min="1" id="input_${header}" value="${val || 1}" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">`;
                 }
                 else if (currentDropdowns[header] && currentDropdowns[header].length > 0) {
                     let optHtml = currentDropdowns[header].map(opt => { let oVal = typeof opt === 'object' ? opt.id : opt; let oName = typeof opt === 'object' ? opt.name : opt; return `<option value="${oVal}" ${val===oVal?'selected':''}>${oName}</option>`; }).join('');
@@ -1925,6 +1938,21 @@
             document.getElementById('formModal').classList.remove('hidden');
         }
 
+        // ================= 【需求 2】絕對強固版：查看/收合切換引擎 (綁定 window 防止攔截) =================
+        window.openDetailRow = function(index) {
+            const detailTr = document.getElementById('detail_' + index);
+            const btn = document.getElementById('btn_detail_' + index);
+            if(!detailTr || !btn) return;
+            
+            detailTr.classList.toggle('hidden');
+            if(!detailTr.classList.contains('hidden')) {
+                btn.innerText = '收合 ▲';
+                btn.className = "w-20 bg-gray-300 border border-gray-400 text-gray-800 py-1 rounded font-bold shadow-inner transition-colors";
+            } else {
+                btn.innerText = '查看 ▼';
+                btn.className = "w-20 bg-gray-200 border border-gray-300 text-gray-700 py-1 rounded font-bold hover:bg-gray-300 transition-colors";
+            }
+        };
         // ================= 【修正 2】前端退料執行器 =================
         function revertOmsDeduction(orderId) {
             showSmartChoice(
