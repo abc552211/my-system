@@ -648,9 +648,13 @@
                 ? currentHeaders.filter(h => h !== '可視系統' && h !== '可操作系統' && h !== '可編輯系統') 
                 : currentHeaders.filter(h => h !== '配料明細' && h !== '工序明細' && h !== '工序明細JSON');
 
-            // 【需求 5】CRM 模組主要欄位精簡過濾
-            const crmHideHeaders = ['常用盒型', '偏好材質', '特殊要求備註'];
+            // 【需求 2】CRM 模組主要欄位精簡過濾 (隱藏的放入展開面板，剩下的自動顯示在外部)
+            const crmHideHeaders = ['常用盒型', '偏好材質', '特殊要求備註', '客戶編號', '統一編號', '聯絡地址', '地址', '備註', '銀行代碼', '匯款帳號'];
             if (currentSysName === 'CRM') { displayHeaders = displayHeaders.filter(h => !crmHideHeaders.includes(h)); }
+
+            // 【需求 1】SUP 模組過濾 (只留大類、供應商名稱、電話、窗口在外面)
+            const supHideHeaders = ['供應商編號', '統一編號', '地址', '聯絡地址', '備註', '銀行代碼', '匯款帳號'];
+            if (currentSysName === 'SUP') { displayHeaders = displayHeaders.filter(h => !supHideHeaders.includes(h)); }
 
             const omsHideHeaders = ['數量', '預估良率', '產出量', '預估成本', '運費成本', '運費報價', '運費備註'];
             if (currentSysName === 'OMS') { displayHeaders = displayHeaders.filter(h => !omsHideHeaders.includes(h)); }
@@ -736,27 +740,29 @@
                     // ================= 各模組智慧下收與大數據反查引擎 =================
                     
                     // 【需求 5 & 6】CRM 展開面板：下收常用參數、瀏覽近期10筆訂單與歷程匯出
-                    if (currentSysName === 'CRM') {
-                        detailsHTML += `<div class="bg-gray-50 p-4 rounded-lg border space-y-3 mb-2">`;
-                        detailsHTML += `<div class="grid grid-cols-3 gap-4 text-xs">`;
-                        crmHideHeaders.forEach(k => { detailsHTML += `<div><span class="text-gray-400 block">${k}</span><span class="font-bold text-moText">${row[k]||'未註記'}</span></div>`; });
-                        detailsHTML += `</div>`;
-                        
-                        let cName = row['客戶名稱'] || row['公司名稱'] || '';
-                        let matchedOms = (systemCache['訂單管理']?.data || []).filter(o => o['客戶名稱'] === cName).slice(0, 10);
-                        detailsHTML += `<div class="mt-3"><span class="font-bold text-xs text-moSide block mb-1">📋 近期跑單紀錄 (最新10筆)</span><table class="w-full text-left text-[11px] bg-white border"><thead><tr class="bg-gray-100"><th>訂單編號</th><th>產品名稱</th><th>訂單狀態</th><th>總金額</th></tr></thead><tbody>`;
-                        matchedOms.forEach(mo => {           
-                            detailsHTML += `<tr><td>${mo['訂單編號']}</td><td class="font-bold">${mo['產品名稱']}</td><td>${mo['訂單狀態']}</td><td class="text-green-600 font-bold">$ ${parseFloat(mo['總金額']||0).toLocaleString()}</td></tr>`;
-                        });
-                        if(matchedOms.length===0) detailsHTML += `<tr><td colspan="4" class="text-center text-gray-400">尚無跑單歷史</td></tr>`;
-                        detailsHTML += `</tbody></table></div>`;
-                        detailsHTML += `<button onclick="exportCustomerHistory('${cName}')" class="mt-2 bg-green-600 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm hover:bg-green-700 transition-colors">📥 匯出該客完整製作細節與報價 P&L</button>`;
-                        detailsHTML += `</div>`;
-                    }
+                    // 【需求 2】CRM 展開面板：下收欄位、瀏覽近期10筆訂單與歷程匯出
+                if (currentSysName === 'CRM') {
+                    detailsHTML += `<div class="bg-gray-50 p-4 rounded-lg border space-y-3 mb-2">`;
+                    detailsHTML += `<div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs pb-2 border-b border-gray-200">`;
+                    crmHideHeaders.forEach(k => { detailsHTML += `<div><span class="text-gray-400 block">${k}</span><span class="font-bold text-moText">${row[k]||'未註記'}</span></div>`; });
+                    detailsHTML += `</div>`;
+                    
+                    let cName = row['客戶名稱'] || row['公司名稱'] || '';
+                    let matchedOms = (systemCache['訂單管理']?.data || []).filter(o => o['客戶名稱'] === cName).slice(0, 10);
+                    detailsHTML += `<div class="mt-3"><span class="font-bold text-xs text-moSide block mb-1">📋 近期跑單紀錄 (最新10筆)</span><table class="w-full text-left text-[11px] bg-white border"><thead><tr class="bg-gray-100"><th>訂單編號</th><th>產品名稱</th><th>訂單狀態</th><th>總金額</th></tr></thead><tbody>`;
+                    matchedOms.forEach(mo => {           
+                        detailsHTML += `<tr><td>${mo['訂單編號']}</td><td class="font-bold">${mo['產品名稱']}</td><td>${mo['訂單狀態']}</td><td class="text-green-600 font-bold">$ ${parseFloat(mo['總金額']||0).toLocaleString()}</td></tr>`;
+                    });
+                    if(matchedOms.length===0) detailsHTML += `<tr><td colspan="4" class="text-center text-gray-400">尚無跑單歷史</td></tr>`;
+                    detailsHTML += `</tbody></table></div>`;
+                    detailsHTML += `<button onclick="exportCustomerHistory('${cName}')" class="mt-2 bg-green-600 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm hover:bg-green-700 transition-colors">📥 匯出該客完整製作細節與報價 P&L</button>`;
+                    detailsHTML += `</div>`;
+                }
 
                 
                  
                 // 【需求 1, 8 修復】ERP 展開面板：補回補貨申請單(進貨按鈕)、進貨與使用紀錄、異常登記
+                // 【需求 7 & 8】ERP 展開面板：物料明細全展開、補貨申請連動與材料異常登記
                 if (currentSysName === 'ERP') {
                     let mId = row['物料編號'];
                     detailsHTML += `<div class="bg-gray-50 p-4 rounded-lg border space-y-3 mb-2 text-xs">`;
@@ -765,7 +771,6 @@
                     fields.forEach(f => { detailsHTML += `<div><span class="text-gray-400 block text-[11px]">${f}</span><span class="font-bold text-gray-800">${row[f]||'無'}</span></div>`; });
                     detailsHTML += `</div>`;
                     
-                    // 【需求 1 補回】未結案補貨單過濾 (恢復進貨按鈕)
                     let mReplenish = currentReplenish.filter(r => r.matId === mId && r.status !== '已結案');
                     let replHtml = mReplenish.map(r => {
                         let formattedTime = r.time.replace('T', ' ').substring(0, 19);
@@ -780,12 +785,10 @@
                         </table></div>`;
                     }
 
-                    // 進貨紀錄過濾
                     let mRestocks = currentRestocks.filter(r => r.matId === mId).slice(0, 10);
                     let rsHtml = mRestocks.map(r => `<tr><td class="p-1 border">${r.time.replace('T', ' ').substring(0, 19)}</td><td class="p-1 border text-blue-600 font-bold">${r.qty}</td><td class="p-1 border">${r.supplier}</td><td class="p-1 border">${r.vendorShipId||'-'}</td></tr>`).join('');
                     if(!rsHtml) rsHtml = `<tr><td colspan="4" class="p-1 border text-center text-gray-400">尚無進貨紀錄</td></tr>`;
                     
-                    // 耗用(扣料)紀錄過濾
                     let mDeducts = currentDeductLogs.filter(d => d.matId === mId).slice(0, 10);
                     let ddHtml = mDeducts.map(d => `<tr><td class="p-1 border">${d.orderId}</td><td class="p-1 border text-red-600 font-bold">${d.qty}</td></tr>`).join('');
                     if(!ddHtml) ddHtml = `<tr><td colspan="2" class="p-1 border text-center text-gray-400">尚無耗用紀錄</td></tr>`;
@@ -813,6 +816,7 @@
 
                     // 【需求 9】SUP 展開面板：瀏覽近20筆進貨紀錄與異常通報追溯
                     // 【需求 3 & 9】SUP 展開面板：進貨紀錄與歷史供貨異常紀錄
+                // 【需求 1】SUP 展開面板：下收欄位與進貨異常紀錄
                 if (currentSysName === 'SUP') {
                     let sName = row['供應商名稱'] || '';
                     let matchedRestocks = currentRestocks.filter(r => r.supplier === supplierNameClean(sName)).slice(0, 20);
@@ -820,16 +824,18 @@
 
                     detailsHTML += `<div class="bg-gray-50 p-4 rounded-lg border text-xs mb-2 space-y-4">`;
                     
-                    // 進貨紀錄
+                    detailsHTML += `<div class="grid grid-cols-2 md:grid-cols-4 gap-4 pb-2 border-b border-gray-200">`;
+                    supHideHeaders.forEach(k => { detailsHTML += `<div><span class="text-gray-400 block">${k}</span><span class="font-bold text-gray-800">${row[k]||'未註記'}</span></div>`; });
+                    detailsHTML += `</div>`;
+                    
                     detailsHTML += `<div><span class="font-bold text-moSide block mb-1">🚚 近 20 筆實體進貨履歷清單</span><table class="w-full text-[11px] bg-white border border-collapse text-left mb-1"><thead><tr class="bg-gray-100"><th class="p-1 border">時間</th><th class="p-1 border">物料編號</th><th class="p-1 border">數量</th><th class="p-1 border">廠商出貨單</th></tr></thead><tbody>`;
                     matchedRestocks.forEach(mr => { detailsHTML += `<tr><td class="p-1 border">${mr.time}</td><td class="p-1 border">${mr.matId}</td><td class="p-1 border text-blue-600 font-bold">${mr.qty}</td><td class="p-1 border">${mr.vendorShipId||'-'}</td></tr>`; });
                     if(matchedRestocks.length===0) detailsHTML += `<tr><td colspan="4" class="p-1 border text-center text-gray-400">目前尚無進貨紀錄</td></tr>`;
                     detailsHTML += `</tbody></table></div>`;
 
-                    // 供貨異常紀錄
                     if(matchedAnomalies.length > 0) {
                         detailsHTML += `<div><span class="font-bold text-red-600 block mb-1">⚠️ 歷史供貨異常紀錄</span><table class="w-full text-[11px] bg-white border border-red-200 border-collapse text-left"><thead><tr class="bg-red-50 text-red-700"><th class="p-1 border border-red-200">時間</th><th class="p-1 border border-red-200">物料</th><th class="p-1 border border-red-200">異常量</th><th class="p-1 border border-red-200">異常說明</th><th class="p-1 border border-red-200">登記人</th></tr></thead><tbody>`;
-                        matchedAnomalies.forEach(ma => { detailsHTML += `<tr><td class="p-1 border border-red-100">${ma.time}</td><td class="p-1 border border-red-100">${ma.matId}</td><td class="p-1 border border-red-100 text-red-600 font-bold">${ma.qty}</td><td class="p-1 border border-red-100">${ma.reason}</td><td class="p-1 border border-red-100">${ma.op}</td></tr>`; });
+                        matchedAnomalies.forEach(ma => { detailsHTML += `<tr><td class="p-1 border border-red-100">${ma.time.replace('T', ' ').substring(0, 19)}</td><td class="p-1 border border-red-100">${ma.matId}</td><td class="p-1 border border-red-100 text-red-600 font-bold">${ma.qty}</td><td class="p-1 border border-red-100">${ma.reason}</td><td class="p-1 border border-red-100">${ma.op}</td></tr>`; });
                         detailsHTML += `</tbody></table></div>`;
                     } else {
                         detailsHTML += `<p class="text-green-600 font-bold bg-green-50 p-2 rounded border border-green-200">✅ 該供應商目前無任何供貨異常紀錄</p>`;
@@ -2777,28 +2783,33 @@
                 let eqRows = res.brokenMacs.map(eq => `<li class="text-[11px] text-red-600 font-bold mb-1 border-b border-red-100 pb-1">🔧 ${eq}</li>`).join('');
                 if(res.brokenMacs.length === 0) eqRows = `<div class="text-xs text-green-600 font-bold p-2 text-center">✅ 設備皆正常運作</div>`;
 
+                // 【需求 3】不統計幾筆，直接列出交接詳細內容
+                let hoRows = '';
+                if(currentHandovers && currentHandovers.length > 0) {
+                    hoRows = currentHandovers.map(ho => {
+                        let color = ho.priority === '高' ? 'text-red-600' : (ho.priority === '中' ? 'text-yellow-600' : 'text-green-600');
+                        return `<li class="text-[11px] mb-2 border-b border-gray-200 pb-1.5 list-none">
+                            <div class="flex justify-between font-bold ${color} mb-0.5"><span>[${ho.priority}優先] ➔ 接收人：${ho.assignee}</span><span>${ho.creator} (${ho.time})</span></div>
+                            <div class="text-gray-700 whitespace-pre-wrap">${ho.content}</div>
+                        </li>`;
+                    }).join('');
+                } else {
+                    hoRows = `<div class="text-xs text-green-600 font-bold p-2 text-center">✅ 目前無待辦交接</div>`;
+                }
+
                 let html = `
                     <div class="p-6 font-sans bg-white max-w-[210mm] mx-auto text-gray-800">
                         <h1 class="text-xl font-bold text-center mb-1 text-moSide tracking-widest">仕罡印刷 - 10分鐘早會專用報告</h1>
                         <div class="text-right text-[10px] text-gray-500 mb-4 border-b pb-2">報告產出時間：${dateStr}</div>
                         
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div class="border border-gray-300 rounded p-3 bg-gray-50 shadow-sm">
-                                <h3 class="font-bold text-xs text-gray-700 border-b border-gray-300 pb-1 mb-2">📋 當前待辦交接數量</h3>
-                                <div class="flex justify-between text-xs mb-1"><span>急件 / 高優先：</span><span class="text-red-600 font-bold text-sm">${res.handovers.high} 筆</span></div>
-                                <div class="flex justify-between text-xs mb-1"><span>中優先級：</span><span class="text-yellow-600 font-bold">${res.handovers.mid} 筆</span></div>
-                                <div class="flex justify-between text-xs"><span>一般交接：</span><span class="text-green-600 font-bold">${res.handovers.low} 筆</span></div>
-                            </div>
-                            <div class="border border-gray-300 rounded p-3 bg-gray-50 shadow-sm">
-                                <h3 class="font-bold text-xs text-gray-700 border-b border-gray-300 pb-1 mb-2">🔧 異常與短缺通報統計</h3>
-                                <div class="flex justify-between text-xs mb-2"><span>低庫存物料：</span><span class="font-bold text-red-600 text-sm">${res.lowStock.length} 項</span></div>
-                                <div class="flex justify-between text-xs"><span>機台待修數：</span><span class="font-bold text-red-600 text-sm">${res.brokenMacs.length} 台</span></div>
-                            </div>
+                        <div class="mb-4 border border-gray-300 rounded p-3 bg-gray-50 shadow-sm">
+                            <h3 class="font-bold text-sm text-moSide mb-2 border-b border-gray-300 pb-1">📋 當前待辦交接明細</h3>
+                            <ul class="m-0 p-0 pl-1">${hoRows}</ul>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="border border-gray-300 rounded p-2"><h3 class="font-bold text-[11px] text-moSide mb-2 bg-gray-100 p-1 text-center">🛑 待修機台/工序清單</h3><ul class="pl-4 m-0">${eqRows}</ul></div>
                             <div class="border border-gray-300 rounded p-2"><h3 class="font-bold text-[11px] text-moSide mb-2 bg-gray-100 p-1 text-center">📦 庫存不足物料清單</h3><ul class="pl-4 m-0">${mRows}</ul></div>
-                            <div class="border border-gray-300 rounded p-2"><h3 class="font-bold text-[11px] text-moSide mb-2 bg-gray-100 p-1 text-center">🛑 待修機台清單</h3><ul class="pl-4 m-0">${eqRows}</ul></div>
                         </div>
 
                         <h3 class="font-bold text-[11px] text-moSide mb-1 mt-4 bg-gray-100 p-1.5 rounded">🏭 線上訂單當前生產工序</h3>
