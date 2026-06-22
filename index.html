@@ -56,9 +56,8 @@
             <h1 class="text-2xl font-bold text-gray-800 mb-1 tracking-widest">仕罡印刷</h1>
             <p class="text-sm text-gray-500 mb-8 tracking-wide">公司管理系統</p>
             
-            <select id="sysUser" class="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:border-moAccent focus:ring-1 focus:ring-moAccent text-center tracking-widest text-gray-700 bg-gray-50">
-                <option value="">正在讀取人員名單...</option>
-            </select>
+            <input list="dl_sysUser" id="sysUser" placeholder="正在讀取人員名單..." class="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:border-moAccent focus:ring-1 focus:ring-moAccent text-center tracking-widest text-gray-700 bg-gray-50">
+            <datalist id="dl_sysUser"></datalist>
             
             <input type="password" id="sysPwd" placeholder="請輸入通行密碼" class="w-full p-3 mb-6 border border-gray-300 rounded-lg focus:outline-none focus:border-moAccent focus:ring-1 focus:ring-moAccent text-center tracking-widest text-gray-700 placeholder-gray-400" onkeypress="if(event.key==='Enter') loginSys()">
             
@@ -153,7 +152,9 @@
                     <div><label class="block text-sm font-bold mb-1">優先級</label>
                         <select id="hoPriority" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide"><option value="高">高 (紅色)</option><option value="中" selected>中 (黃色)</option><option value="低">低 (綠色)</option></select></div>
                     <div><label class="block text-sm font-bold mb-1">指定接收人</label>
-                        <select id="hoAssignee" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide"><option value="全員">全員</option></select></div>
+                        <input list="dl_hoAssignee" id="hoAssignee" value="全員" placeholder="搜尋或選擇接收人..." class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide">
+                        <datalist id="dl_hoAssignee"><option value="全員"></option></datalist>
+                    </div>
                 </div>
                 <div><label class="block text-sm font-bold mb-1">交接內容</label><textarea id="hoContent" rows="3" class="w-full p-2 border rounded focus:ring-1 focus:ring-moSide"></textarea></div>
                 <div><label class="block text-sm font-bold mb-1">附加照片 (可選)</label>
@@ -393,11 +394,12 @@
         // --- 網頁載入時自動抓取人員名單 ---
         window.onload = () => {
             google.script.run.withSuccessHandler(users => {
-                let opts = '<option value="">請選擇登入人員編號</option>';
-                users.forEach(u => opts += `<option value="${u.id}">[${u.id}] ${u.name}</option>`);
-                document.getElementById('sysUser').innerHTML = opts;
+                let opts = '';
+                users.forEach(u => opts += `<option value="${u.id}">${u.name}</option>`);
+                document.getElementById('dl_sysUser').innerHTML = opts;
+                document.getElementById('sysUser').placeholder = '請輸入或點擊選擇員工編號...';
             }).withFailureHandler(err => {
-                document.getElementById('sysUser').innerHTML = '<option value="">名單讀取失敗，請重新整理</option>';
+                document.getElementById('sysUser').placeholder = '名單讀取失敗，請重新整理';
             }).getAccountList();
         };
 
@@ -1353,7 +1355,7 @@
         function openHandoverModal() {
             document.getElementById('hoContent').value = ''; document.getElementById('hoImage').value = ''; document.getElementById('hoImagePreview').classList.add('hidden');
             hoImageBase64 = ""; 
-            let opts = `<option value="全員">全員</option>`;
+            let opts = `<option value="全員"></option>`;
             if(currentDropdowns['員工姓名']) {
                 currentDropdowns['員工姓名'].forEach(e => {
                     let eId = typeof e === 'object' ? e.id : e;
@@ -1361,7 +1363,9 @@
                     opts += `<option value="${eId}">${eName}</option>`;
                 });
             }
-            document.getElementById('hoAssignee').innerHTML = opts; document.getElementById('handoverModal').classList.remove('hidden');
+            document.getElementById('hoAssignee').value = '全員'; // 預設值
+            document.getElementById('dl_hoAssignee').innerHTML = opts; 
+            document.getElementById('handoverModal').classList.remove('hidden');
         }
 
         // ================= 修復：交接照片讀取轉換 =================
@@ -1679,11 +1683,17 @@
         window.addWoStepRow = function() {
             let container = document.getElementById('woStepsContainer');
             let rowIdx = container.querySelectorAll('.wo-step-row').length;
-            let mOpts = '<option value="">分派機台/製程...</option>';
-            let eOpts = '<option value="">指派負責員工...</option>';
+            let listId = 'dl_mac_' + Date.now() + '_' + rowIdx;
+            let empListId = 'dl_emp_' + Date.now() + '_' + rowIdx;
+            
+            let mOpts = '';
+            let eOpts = '';
             
             if(currentDropdowns['作業機台']) {
-                currentDropdowns['作業機台'].forEach(m => { mOpts += `<option value="${m.id}">${m.name}</option>`; });
+                currentDropdowns['作業機台'].forEach(m => { 
+                    let cleanName = m.name.replace(/\[|\]/g, '');
+                    mOpts += `<option value="${m.id} - ${cleanName}"></option>`; 
+                });
             }
             if(currentDropdowns['員工姓名']) {
                 currentDropdowns['員工姓名'].forEach(e => { 
@@ -1695,20 +1705,32 @@
             
             let today = new Date(new Date().getTime() + 8*60*60*1000).toISOString().split('T')[0];
             let div = document.createElement('div');
-            div.className = 'wo-step-row border p-2 rounded bg-gray-50 flex flex-col gap-1 text-xs relative pt-5 shadow-sm';
+            div.className = 'wo-step-row border border-gray-300 p-3 rounded-lg bg-white flex flex-col gap-2 text-xs relative pt-6 shadow-sm';
             div.innerHTML = `
-                <button onclick="this.closest('.wo-step-row').remove()" class="absolute top-1 right-1 text-gray-400 hover:text-red-500 font-bold">&times;</button>
-                <div class="grid grid-cols-2 gap-2">
-                    <div><label class="block text-[10px] text-gray-400 font-bold">工序名稱</label><input type="text" class="wo-step-name w-full p-1 border rounded" placeholder="如: 印刷/裁切" value="工序${rowIdx+1}"></div>
-                    <div><label class="block text-[10px] text-gray-400 font-bold">預計完工日</label><input type="date" class="wo-step-date w-full p-1 border rounded" value="${today}"></div>
+                <div class="absolute top-0 left-0 bg-moSide text-white px-2 py-0.5 rounded-br-lg rounded-tl-lg font-bold text-[10px]">第 ${rowIdx + 1} 道工序</div>
+                <button onclick="this.closest('.wo-step-row').remove()" class="absolute top-1 right-2 text-gray-400 hover:text-red-500 font-bold text-lg leading-none transition-colors">&times;</button>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-moSide font-bold mb-1">🔍 搜尋已有工序與設備 (未建檔不可使用)</label>
+                        <input list="${listId}" class="wo-step-mac w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-moSide bg-indigo-50 font-bold text-indigo-800" placeholder="輸入關鍵字或 % 模糊搜尋...">
+                        <datalist id="${listId}">${mOpts}</datalist>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-moSide font-bold mb-1">👤 搜尋與指派操作人員</label>
+                        <input list="${empListId}" class="wo-step-emp w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-moSide" placeholder="輸入編號/姓名模糊搜尋...">
+                        <datalist id="${empListId}">${eOpts}</datalist>
+                    </div>
                 </div>
-                <div class="grid grid-cols-2 gap-2 mt-1">
-                    <div><label class="block text-[10px] text-gray-400 font-bold">製程機台</label><select class="wo-step-mac w-full p-1 border rounded">${mOpts}</select></div>
-                    <div><label class="block text-[10px] text-gray-400 font-bold">操作人員</label><select class="wo-step-emp w-full p-1 border rounded">${eOpts}</select></div>
+                <div class="grid grid-cols-1 gap-3 mt-1">
+                    <div>
+                        <label class="block text-[10px] text-moSide font-bold mb-1">📅 預計完成日期</label>
+                        <input type="date" class="wo-step-date w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-moSide" value="${today}">
+                    </div>
                 </div>
             `;
             container.appendChild(div);
-        }
+        };
 
         // ================= 【修復】查看/收合按鈕強固切換引擎 (解決估料後打不開) =================
         window.toggleDetails = function(rowId) { 
