@@ -649,7 +649,7 @@
                 : currentHeaders.filter(h => h !== '配料明細' && h !== '工序明細' && h !== '工序明細JSON');
 
             // 【需求 2】CRM 模組主要欄位精簡過濾 (隱藏的放入展開面板，剩下的自動顯示在外部)
-            const crmHideHeaders = ['常用盒型', '偏好材質', '特殊要求備註', '客戶編號', '統一編號', '聯絡地址', '地址', '備註', '銀行代碼', '匯款帳號'];
+            const crmHideHeaders = ['常用盒型', '偏好材質', '特殊要求備註', '客戶代號', '統一編號', '聯絡地址', '地址', '備註', '銀行代碼', '匯款帳號'];
             if (currentSysName === 'CRM') { displayHeaders = displayHeaders.filter(h => !crmHideHeaders.includes(h)); }
 
             // 【需求 1】SUP 模組過濾 (只留大類、供應商名稱、電話、窗口在外面)
