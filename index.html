@@ -393,8 +393,8 @@
         // --- 網頁載入時自動抓取人員名單 ---
         window.onload = () => {
             google.script.run.withSuccessHandler(users => {
-                let opts = '<option value="">請選擇登入人員</option>';
-                users.forEach(u => opts += `<option value="${u}">${u}</option>`);
+                let opts = '<option value="">請選擇登入人員編號</option>';
+                users.forEach(u => opts += `<option value="${u.id}">[${u.id}] ${u.name}</option>`);
                 document.getElementById('sysUser').innerHTML = opts;
             }).withFailureHandler(err => {
                 document.getElementById('sysUser').innerHTML = '<option value="">名單讀取失敗，請重新整理</option>';
@@ -1356,9 +1356,9 @@
             let opts = `<option value="全員">全員</option>`;
             if(currentDropdowns['員工姓名']) {
                 currentDropdowns['員工姓名'].forEach(e => {
-                    // 防呆：判斷傳來的是物件還是純文字，避免變成 [object Object]
+                    let eId = typeof e === 'object' ? e.id : e;
                     let eName = typeof e === 'object' ? e.name : e;
-                    opts += `<option value="${eName}">${eName}</option>`;
+                    opts += `<option value="${eId}">${eName}</option>`;
                 });
             }
             document.getElementById('hoAssignee').innerHTML = opts; document.getElementById('handoverModal').classList.remove('hidden');
@@ -1686,7 +1686,11 @@
                 currentDropdowns['作業機台'].forEach(m => { mOpts += `<option value="${m.id}">${m.name}</option>`; });
             }
             if(currentDropdowns['員工姓名']) {
-                currentDropdowns['員工姓名'].forEach(e => { let eName = typeof e === 'object' ? e.name : e; mOpts += `<option value="${eName}">${eName}</option>`; });
+                currentDropdowns['員工姓名'].forEach(e => { 
+                    let eId = typeof e === 'object' ? e.id : e;
+                    let eName = typeof e === 'object' ? e.name : e; 
+                    eOpts += `<option value="${eId}">${eName}</option>`; 
+                });
             }
             
             let today = new Date(new Date().getTime() + 8*60*60*1000).toISOString().split('T')[0];
@@ -2058,6 +2062,9 @@
                 else if (header === '訂單編號' && rowIndex === -1) {
                     fieldHTML += `<input type="text" id="input_${header}" readonly class="w-full p-2 border bg-gray-100 text-gray-400 cursor-not-allowed" placeholder="[送出存檔後系統自動生成]">`;
                 }
+                else if (header === '員工編號' && rowIndex === -1 && currentSysName === 'SYS') {
+                    fieldHTML += `<input type="text" id="input_${header}" readonly class="w-full p-2 border bg-gray-100 text-gray-400 cursor-not-allowed" placeholder="[送出存檔後自動依年度生成]">`;
+                }    
                 else if (header === '訂單狀態' && rowIndex === -1 && currentSysName === 'OMS') {
                     fieldHTML += `<input type="text" id="input_${header}" readonly value="估算中" class="w-full p-2 border bg-gray-100 text-gray-500 font-bold cursor-not-allowed">`;
                 }
