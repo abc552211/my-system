@@ -293,7 +293,8 @@
         let currentEqsLogs = []; 
         let currentReplenish = []; 
         let currentAllWos = [];
-        let currentDeductLogs = []; 
+        let currentDeductLogs = [];
+        let currentAnomalies = []; // 【新增】異常紀錄暫存陣列
         let editingRowIndex = -1; 
         let userViewAuth = ''; 
         let userEditAuth = '';
@@ -449,7 +450,7 @@
                         document.getElementById('loadingIndicator').classList.remove('flex');
                         currentHeaders = res.headers || []; currentDropdowns = res.dropdowns || {};
                         currentHandovers = res.handovers || []; currentRestocks = res.restockLogs || []; currentReplenish = res.replenishLogs || [];
-                        currentEqsLogs = res.eqsLogs || []; currentAllWos = res.allWos || []; currentDeductLogs = res.deductLogs || [];
+                        currentEqsLogs = res.eqsLogs || []; currentAllWos = res.allWos || []; currentDeductLogs = res.deductLogs || []; currentAnomalies = res.anomalyLogs || [];
                         
                         // 【關鍵修復】補上正確的「操作」與「編輯」權限參數，編輯按鈕就不會消失了
                         renderTable(res.data || [], userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName));
@@ -491,7 +492,7 @@
                 document.getElementById('loadingIndicator').classList.add('hidden'); document.getElementById('loadingIndicator').classList.remove('flex');
                 currentHeaders = res.headers || []; currentDropdowns = res.dropdowns || {};
                 currentHandovers = res.handovers || []; currentRestocks = res.restockLogs || []; currentReplenish = res.replenishLogs || [];
-                currentEqsLogs = res.eqsLogs || []; currentAllWos = res.allWos || []; currentDeductLogs = res.deductLogs || [];
+                currentEqsLogs = res.eqsLogs || []; currentAllWos = res.allWos || []; currentDeductLogs = res.deductLogs || []; currentAnomalies = res.anomalyLogs || [];
                 
                 // 【核心修正】精確傳入操作與編輯兩大獨立布林值判定
                 renderTable(res.data || [], userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName));
@@ -509,7 +510,7 @@
                     document.getElementById('loadingIndicator').classList.add('hidden'); document.getElementById('loadingIndicator').classList.remove('flex');
                     currentHeaders = res.headers || []; currentDropdowns = res.dropdowns || {};
                     currentHandovers = res.handovers || []; currentRestocks = res.restockLogs || []; currentReplenish = res.replenishLogs || [];
-                    currentEqsLogs = res.eqsLogs || []; currentAllWos = res.allWos || []; currentDeductLogs = res.deductLogs || [];
+                    currentEqsLogs = res.eqsLogs || []; currentAllWos = res.allWos || []; currentDeductLogs = res.deductLogs || []; currentAnomalies = res.anomalyLogs || [];
                     
                     // 【核心修正】異步網絡讀取成功後，同樣精確傳入操作與編輯布林值
                     renderTable(res.data || [], userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName));
@@ -738,30 +739,73 @@
                     }
 
                     // 【需求 7 & 8】ERP 展開面板：物料明細全展開、安全水位反查、與材料異常登記
-                    if (currentSysName === 'ERP') {
-                        detailsHTML += `<div class="bg-gray-50 p-4 rounded-lg border space-y-3 mb-2 text-xs">`;
-                        detailsHTML += `<div class="grid grid-cols-3 md:grid-cols-6 gap-3">`;
-                        let fields = ['安全庫存', '單位', '供應商', '內價', '售價', '安全水位備註'];
-                        fields.forEach(f => { detailsHTML += `<div><span class="text-gray-400 block text-[11px]">${f}</span><span class="font-bold text-gray-800">${row[f]||'無'}</span></div>`; });
-                        detailsHTML += `</div>`;
-                        detailsHTML += `<div class="flex gap-2 mt-3">
-                            <button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}')" class="bg-yellow-500 text-white px-3 py-1.5 rounded font-bold hover:bg-yellow-600 transition-colors">🛒 建立補貨申請</button>
-                            <button onclick="openAnomalyModal('${row['物料編號']}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}')" class="bg-red-500 text-white px-3 py-1.5 rounded font-bold hover:bg-red-600 transition-colors">⚠️ 材料異常登錄</button>
-                        </div></div>`;
-                    }
+                    // 【需求 1, 2 & 8】ERP 展開面板：進貨與使用紀錄、材料異常登記定位
+                if (currentSysName === 'ERP') {
+                    let mId = row['物料編號'];
+                    detailsHTML += `<div class="bg-gray-50 p-4 rounded-lg border space-y-3 mb-2 text-xs">`;
+                    detailsHTML += `<div class="grid grid-cols-3 md:grid-cols-6 gap-3">`;
+                    let fields = ['安全庫存', '單位', '供應商', '內價', '售價', '安全水位備註'];
+                    fields.forEach(f => { detailsHTML += `<div><span class="text-gray-400 block text-[11px]">${f}</span><span class="font-bold text-gray-800">${row[f]||'無'}</span></div>`; });
+                    detailsHTML += `</div>`;
+                    
+                    // 進貨紀錄過濾
+                    let mRestocks = currentRestocks.filter(r => r.matId === mId).slice(0, 10);
+                    let rsHtml = mRestocks.map(r => `<tr><td class="p-1 border">${r.time}</td><td class="p-1 border text-blue-600 font-bold">${r.qty}</td><td class="p-1 border">${r.supplier}</td><td class="p-1 border">${r.vendorShipId||'-'}</td></tr>`).join('');
+                    if(!rsHtml) rsHtml = `<tr><td colspan="4" class="p-1 border text-center text-gray-400">尚無進貨紀錄</td></tr>`;
+                    
+                    // 耗用(扣料)紀錄過濾
+                    let mDeducts = currentDeductLogs.filter(d => d.matId === mId).slice(0, 10);
+                    let ddHtml = mDeducts.map(d => `<tr><td class="p-1 border">${d.orderId}</td><td class="p-1 border text-red-600 font-bold">${d.qty}</td></tr>`).join('');
+                    if(!ddHtml) ddHtml = `<tr><td colspan="2" class="p-1 border text-center text-gray-400">尚無耗用紀錄</td></tr>`;
+
+                    detailsHTML += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-200">
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="font-bold text-moSide block">🚚 近期進貨紀錄 (最新10筆)</span>
+                                <button onclick="openAnomalyModal('${row['物料編號']}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}')" class="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-red-600 transition-colors shadow-sm">⚠️ 登錄供貨異常</button>
+                            </div>
+                            <table class="w-full text-[11px] bg-white border border-collapse text-left">
+                                <thead class="bg-gray-100"><tr><th class="p-1 border">時間</th><th class="p-1 border">數量</th><th class="p-1 border">供應商</th><th class="p-1 border">出貨單號</th></tr></thead>
+                                <tbody>${rsHtml}</tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <span class="font-bold text-moSide block mb-1">📉 近期耗用/扣料紀錄 (最新10筆)</span>
+                            <table class="w-full text-[11px] bg-white border border-collapse text-left">
+                                <thead class="bg-gray-100"><tr><th class="p-1 border">關聯單號</th><th class="p-1 border">扣料數量</th></tr></thead>
+                                <tbody>${ddHtml}</tbody>
+                            </table>
+                        </div>
+                    </div></div>`;
+                }
 
                     // 【需求 9】SUP 展開面板：瀏覽近20筆進貨紀錄與異常通報追溯
-                    if (currentSysName === 'SUP') {
-                        let sName = row['供應商名稱'] || '';
-                        let matchedRestocks = currentRestocks.filter(r => r.supplier === supplierNameClean(sName)).slice(0, 20);
-                        detailsHTML += `<div class="bg-gray-50 p-4 rounded-lg border text-xs mb-2">`;
-                        detailsHTML += `<span class="font-bold text-moSide block mb-1">🚚 近 20 筆實體進貨履歷清單</span><table class="w-full text-[11px] bg-white border mb-3"><thead><tr class="bg-gray-100"><th>時間</th><th>物料編號</th><th>數量</th><th>廠商出貨單</th></tr></thead><tbody>`;
-                        matchedRestocks.forEach(mr => { detailsHTML += `<tr><td>${mr.time}</td><td>${mr.matId}</td><td class="text-blue-600 font-bold">${mr.qty}</td><td>${mr.vendorShipId||'-'}</td></tr>`; });
-                        if(matchedRestocks.length===0) detailsHTML += `<tr><td colspan="4" class="text-center text-gray-400">目前尚無進貨紀錄</td></tr>`;
-                        detailsHTML += `</tbody></table>`;
-                        detailsHTML += `<button onclick="exportSupplierHistory('${sName}')" class="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm hover:bg-indigo-700 transition-colors">📥 匯出供貨商品全生命週期明細</button>`;
-                        detailsHTML += `</div>`;
+                    // 【需求 3 & 9】SUP 展開面板：進貨紀錄與歷史供貨異常紀錄
+                if (currentSysName === 'SUP') {
+                    let sName = row['供應商名稱'] || '';
+                    let matchedRestocks = currentRestocks.filter(r => r.supplier === supplierNameClean(sName)).slice(0, 20);
+                    let matchedAnomalies = typeof currentAnomalies !== 'undefined' ? currentAnomalies.filter(a => a.supplier === supplierNameClean(sName)) : [];
+
+                    detailsHTML += `<div class="bg-gray-50 p-4 rounded-lg border text-xs mb-2 space-y-4">`;
+                    
+                    // 進貨紀錄
+                    detailsHTML += `<div><span class="font-bold text-moSide block mb-1">🚚 近 20 筆實體進貨履歷清單</span><table class="w-full text-[11px] bg-white border border-collapse text-left mb-1"><thead><tr class="bg-gray-100"><th class="p-1 border">時間</th><th class="p-1 border">物料編號</th><th class="p-1 border">數量</th><th class="p-1 border">廠商出貨單</th></tr></thead><tbody>`;
+                    matchedRestocks.forEach(mr => { detailsHTML += `<tr><td class="p-1 border">${mr.time}</td><td class="p-1 border">${mr.matId}</td><td class="p-1 border text-blue-600 font-bold">${mr.qty}</td><td class="p-1 border">${mr.vendorShipId||'-'}</td></tr>`; });
+                    if(matchedRestocks.length===0) detailsHTML += `<tr><td colspan="4" class="p-1 border text-center text-gray-400">目前尚無進貨紀錄</td></tr>`;
+                    detailsHTML += `</tbody></table></div>`;
+
+                    // 供貨異常紀錄
+                    if(matchedAnomalies.length > 0) {
+                        detailsHTML += `<div><span class="font-bold text-red-600 block mb-1">⚠️ 歷史供貨異常紀錄</span><table class="w-full text-[11px] bg-white border border-red-200 border-collapse text-left"><thead><tr class="bg-red-50 text-red-700"><th class="p-1 border border-red-200">時間</th><th class="p-1 border border-red-200">物料</th><th class="p-1 border border-red-200">異常量</th><th class="p-1 border border-red-200">異常說明</th><th class="p-1 border border-red-200">登記人</th></tr></thead><tbody>`;
+                        matchedAnomalies.forEach(ma => { detailsHTML += `<tr><td class="p-1 border border-red-100">${ma.time}</td><td class="p-1 border border-red-100">${ma.matId}</td><td class="p-1 border border-red-100 text-red-600 font-bold">${ma.qty}</td><td class="p-1 border border-red-100">${ma.reason}</td><td class="p-1 border border-red-100">${ma.op}</td></tr>`; });
+                        detailsHTML += `</tbody></table></div>`;
+                    } else {
+                        detailsHTML += `<p class="text-green-600 font-bold bg-green-50 p-2 rounded border border-green-200">✅ 該供應商目前無任何供貨異常紀錄</p>`;
                     }
+
+                    detailsHTML += `<button onclick="exportSupplierHistory('${sName}')" class="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm hover:bg-indigo-700 transition-colors">📥 匯出供貨商品全生命週期明細</button>`;
+                    detailsHTML += `</div>`;
+                }
 
                     if (currentSysName === 'OMS' && row['配料明細']) {
                         try {
