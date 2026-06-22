@@ -686,6 +686,20 @@
                     let detailsHTML = '';
                     displayHeaders.forEach(key => {
                         let val = row[key] || '';
+                        
+                        // 【需求 2 修復】攔截並格式化帶有 T 和 Z 的原生 ISO 時間字串
+                        if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+                            let d = new Date(val);
+                            if (!isNaN(d)) {
+                                val = d.getFullYear() + '/' + 
+                                      String(d.getMonth()+1).padStart(2,'0') + '/' + 
+                                      String(d.getDate()).padStart(2,'0') + ' ' + 
+                                      String(d.getHours()).padStart(2,'0') + ':' + 
+                                      String(d.getMinutes()).padStart(2,'0') + ':' + 
+                                      String(d.getSeconds()).padStart(2,'0');
+                            }
+                        }
+
                         let isFinanceField = key.includes('成本') || key.includes('報價') || key.includes('單價') || key.includes('售價') || key.includes('金額');
                         if (!userShowFinance && isFinanceField && val !== '') {
                             val = `<span class="text-gray-400 italic">🔒 無權限</span>`;
@@ -738,8 +752,9 @@
                         detailsHTML += `</div>`;
                     }
 
-                    // 【需求 7 & 8】ERP 展開面板：物料明細全展開、安全水位反查、與材料異常登記
-                    // 【需求 1, 2 & 8】ERP 展開面板：進貨與使用紀錄、材料異常登記定位
+                
+                 
+                // 【需求 1, 8 修復】ERP 展開面板：補回補貨申請單(進貨按鈕)、進貨與使用紀錄、異常登記
                 if (currentSysName === 'ERP') {
                     let mId = row['物料編號'];
                     detailsHTML += `<div class="bg-gray-50 p-4 rounded-lg border space-y-3 mb-2 text-xs">`;
@@ -748,9 +763,24 @@
                     fields.forEach(f => { detailsHTML += `<div><span class="text-gray-400 block text-[11px]">${f}</span><span class="font-bold text-gray-800">${row[f]||'無'}</span></div>`; });
                     detailsHTML += `</div>`;
                     
+                    // 【需求 1 補回】未結案補貨單過濾 (恢復進貨按鈕)
+                    let mReplenish = currentReplenish.filter(r => r.matId === mId && r.status !== '已結案');
+                    let replHtml = mReplenish.map(r => {
+                        let formattedTime = r.time.replace('T', ' ').substring(0, 19);
+                        return `<tr><td class="p-1 border">${formattedTime}</td><td class="p-1 border font-mono">${r.repId}</td><td class="p-1 border text-orange-600 font-bold">${r.reqQty}</td><td class="p-1 border text-blue-600 font-bold">${r.inQty}</td><td class="p-1 border text-center w-16"><button onclick="openRestockFromRepl('${r.repId}', '${r.matId}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}', ${r.reqQty - r.inQty})" class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] hover:bg-blue-700 transition-colors shadow-sm">📦 進貨</button></td></tr>`;
+                    }).join('');
+                    
+                    if(replHtml) {
+                        detailsHTML += `<div class="mt-3"><span class="font-bold text-orange-600 block mb-1">⏳ 待處理的補貨申請單 (可執行進貨)</span>
+                        <table class="w-full text-[11px] bg-white border border-orange-200 border-collapse text-left">
+                            <thead class="bg-orange-50 text-orange-700"><tr><th class="p-1 border border-orange-200">申請時間</th><th class="p-1 border border-orange-200">補貨單號</th><th class="p-1 border border-orange-200">申請數量</th><th class="p-1 border border-orange-200">已進數量</th><th class="p-1 border border-orange-200 text-center">操作</th></tr></thead>
+                            <tbody>${replHtml}</tbody>
+                        </table></div>`;
+                    }
+
                     // 進貨紀錄過濾
                     let mRestocks = currentRestocks.filter(r => r.matId === mId).slice(0, 10);
-                    let rsHtml = mRestocks.map(r => `<tr><td class="p-1 border">${r.time}</td><td class="p-1 border text-blue-600 font-bold">${r.qty}</td><td class="p-1 border">${r.supplier}</td><td class="p-1 border">${r.vendorShipId||'-'}</td></tr>`).join('');
+                    let rsHtml = mRestocks.map(r => `<tr><td class="p-1 border">${r.time.replace('T', ' ').substring(0, 19)}</td><td class="p-1 border text-blue-600 font-bold">${r.qty}</td><td class="p-1 border">${r.supplier}</td><td class="p-1 border">${r.vendorShipId||'-'}</td></tr>`).join('');
                     if(!rsHtml) rsHtml = `<tr><td colspan="4" class="p-1 border text-center text-gray-400">尚無進貨紀錄</td></tr>`;
                     
                     // 耗用(扣料)紀錄過濾
