@@ -169,7 +169,20 @@
         </div>
     </div>
 
-    <div id="restockModal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4"><div class="bg-moCard rounded-lg w-full max-w-sm flex flex-col"><div class="p-4 border-b flex justify-between bg-blue-50"><h3 class="font-bold text-blue-700">執行補貨進貨</h3><button onclick="closeModal('restockModal')">&times;</button></div><div class="p-6 space-y-4"><input type="hidden" id="rsMatId"><p class="text-sm">進貨物料：<span id="rsMatName" class="font-bold text-black"></span></p><div><label class="block text-sm font-bold mb-1 text-gray-500">對應補貨單號 (鎖定)</label><input type="text" id="rsOrderId" readonly class="w-full p-2 border bg-gray-100 text-gray-500 cursor-not-allowed"></div><div><label class="block text-sm font-bold mb-1 text-red-600">廠商出貨單號 (必填)</label><input type="text" id="rsVendorShipId" class="w-full p-2 border border-red-300 rounded focus:ring-1 focus:ring-blue-300" placeholder="請輸入廠商單號"></div><div><label class="block text-sm font-bold mb-1">進貨數量 <span id="rsMaxLabel" class="text-xs text-red-500 font-normal"></span></label><input type="number" id="rsQty" class="w-full p-2 border rounded focus:ring-1 focus:ring-blue-300"></div><div><label class="block text-sm font-bold mb-1">供應商</label><input list="dl_supplier" id="rsSupplier" class="w-full p-2 border rounded focus:ring-1 focus:ring-blue-300"><datalist id="dl_supplier"></datalist></div></div><div class="p-4 border-t flex justify-end gap-3 bg-gray-50"><button onclick="closeModal('restockModal')" class="px-4 py-2 border hover:bg-gray-100 rounded">取消</button><button onclick="submitRestock(this)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">確認進貨</button></div></div></div>
+    <div id="restockModal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4"><div class="bg-moCard rounded-lg w-full max-w-sm flex flex-col"><div class="p-4 border-b flex justify-between bg-blue-50"><h3 class="font-bold text-blue-700">執行補貨進貨</h3><button onclick="closeModal('restockModal')">&times;</button></div><div class="p-6 space-y-3"><input type="hidden" id="rsMatId"><p class="text-sm">進貨物料：<span id="rsMatName" class="font-bold text-black"></span></p>
+    <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-bold mb-1 text-gray-500">補貨單號 (鎖定)</label><input type="text" id="rsOrderId" readonly class="w-full p-2 border bg-gray-100 text-xs text-gray-500 cursor-not-allowed"></div>
+        <div><label class="block text-xs font-bold mb-1">供應商</label><input list="dl_supplier" id="rsSupplier" class="w-full p-2 border rounded focus:ring-1 focus:ring-blue-300 text-xs"><datalist id="dl_supplier"></datalist></div>
+    </div>
+    <div><label class="block text-sm font-bold mb-1 text-red-600">廠商出貨單號 (必填)</label><input type="text" id="rsVendorShipId" class="w-full p-2 border border-red-300 rounded focus:ring-1 focus:ring-blue-300" placeholder="請輸入廠商單號"></div>
+    <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-sm font-bold mb-1">進貨數量 <span id="rsMaxLabel" class="text-xs text-red-500 font-normal"></span></label><input type="number" id="rsQty" class="w-full p-2 border rounded focus:ring-1 focus:ring-blue-300 font-bold text-blue-700"></div>
+        <div><label class="block text-sm font-bold mb-1 text-green-700">該批進貨總金額</label><input type="number" id="rsAmount" class="w-full p-2 border border-green-300 rounded focus:ring-1 focus:ring-green-400 font-bold text-green-700" placeholder="計算平均單價用"></div>
+    </div>
+       </div><div class="p-4 border-t flex justify-end gap-3 bg-gray-50"><button onclick="closeModal('restockModal')" class="px-4 py-2 border hover:bg-gray-100 rounded">取消</button><button onclick="submitRestock(this)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-bold shadow-sm">確認進貨並結算均價</button>
+       </div>
+       </div>
+    </div>
     <div id="replenishModal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4"><div class="bg-moCard rounded-lg w-full max-w-sm flex flex-col"><div class="p-4 border-b flex justify-between bg-yellow-50"><h3 class="font-bold text-yellow-700">建立補貨申請單</h3><button onclick="closeModal('replenishModal')">&times;</button></div><div class="p-6 space-y-4"><input type="hidden" id="replMatId"><input type="hidden" id="replSupplier"><p class="text-sm">補貨物料：<span id="replMatName" class="font-bold"></span></p><div><label class="block text-sm font-bold mb-1">預計申請數量</label><input type="number" id="replQty" class="w-full p-2 border rounded focus:ring-1 focus:ring-yellow-400"></div><div><label class="block text-sm font-bold mb-1 text-yellow-700">申請原因 (必填)</label><input type="text" id="replReason" class="w-full p-2 border border-yellow-300 rounded focus:ring-1 focus:ring-yellow-400" placeholder="請輸入補貨原因"></div></div><div class="p-4 border-t flex justify-end gap-3 bg-gray-50"><button onclick="closeModal('replenishModal')" class="px-4 py-2 border hover:bg-gray-100 rounded">取消</button><button onclick="submitReplenish(this)" class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded shadow-sm">產生單號並下載 PDF</button></div></div></div>
 
     <div id="pdfWrapper" class="fixed top-0 left-0 w-full h-full -z-50 pointer-events-none opacity-0 overflow-hidden">
@@ -207,6 +220,11 @@
                 <div>
                     <label class="block text-sm font-bold text-moSide mb-1">📝 訂單細項 / 摘要備註 (供您確認或微調)</label>
                     <textarea id="estFinalDetailsText" class="w-full flex-1 p-3 border rounded-xl text-sm focus:ring-1 focus:ring-moSide" style="min-height:100px; resize:vertical;"></textarea>
+                </div>
+                <div class="mt-3">
+                    <label class="block text-sm font-bold text-moSide mb-1">🖼️ 上傳估價示意圖 (最多2張，印於單據尾部)</label>
+                    <input type="file" id="estImages" accept="image/*" multiple max="2" onchange="handleEstImages(this)" class="w-full text-xs text-gray-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:bg-gray-200 hover:file:bg-gray-300">
+                    <div id="estImagePreviewContainer" class="flex gap-2 mt-2"></div>
                 </div>
             </div>
             <div class="p-4 border-t flex justify-end gap-2 bg-gray-50">
