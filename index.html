@@ -955,42 +955,82 @@
                                 btnSlot2 = `<button onclick="printQuotation(${index})" class="w-20 bg-blue-500 text-white py-1 rounded font-bold shadow">📄 估價單</button>`; 
                             }
                             if (status === '估算中') { btnSlot4 = `<button onclick="openMatModal('${oId}', 'estimate')" class="w-20 bg-indigo-500 text-white py-1 rounded font-bold shadow animate-pulse">📐 配料估價</button>`; } 
-                            else if (status === '待規劃') { btnSlot4 = `<button onclick="openPlanModal('${oId}')" class="w-20 bg-purple-600 text-white py-1 rounded font-bold shadow animate-pulse">📋 工序規劃</button>`; }
+                           else if (status === '待規劃') { 
+                                // 【需求 5】規劃前可重估
+                                btnSlot3 = `<button onclick="openMatModal('${oId}', 'estimate')" class="w-20 bg-gray-500 text-white py-1 rounded font-bold shadow">重新估價</button>`;
+                                btnSlot4 = `<button onclick="openPlanModal('${oId}')" class="w-20 bg-purple-600 text-white py-1 rounded font-bold shadow animate-pulse">📋 工序規劃</button>`; 
+                            }
                             else if (status === '待扣料') { btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold shadow animate-pulse">📦 執行扣料</button>`; } 
                             else if (status === '原料不足') { 
                                 btnSlot3 = `<button onclick="openReplenishModal('', '', '')" class="w-20 bg-red-100 text-red-700 border border-red-300 py-1 rounded font-bold shadow">🛒 補貨</button>`;
                                 btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold shadow animate-pulse">📦 再次扣料</button>`; 
                             }
-                            else if (status === '待扣料' || status === '原料不足') { 
-                                btnSlot4 = `<div class="flex gap-1 w-32"><button onclick="openMatModal('${oId}', 'estimate')" class="flex-1 bg-gray-500 text-white py-1 rounded font-bold">再次估價</button><button onclick="openMatModal('${oId}', 'normal')" class="flex-1 bg-yellow-500 text-white py-1 rounded font-bold shadow">📦 扣料</button></div>`; 
-                            } 
-                            else if (status === '待排程') { 
+                            else if (status === '待扣料') { 
+                                // 【需求 5】規劃後也能重估
+                                btnSlot3 = `<button onclick="openMatModal('${oId}', 'estimate')" class="w-20 bg-gray-500 text-white py-1 rounded font-bold shadow">重新估價</button>`;
+                                btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold shadow animate-pulse">📦 執行扣料</button>`; 
+                            }
+                            else if (status === '原料不足') { 
+                                btnSlot3 = `<button onclick="openReplenishModal('', '', '')" class="w-20 bg-red-100 text-red-700 border border-red-300 py-1 rounded font-bold shadow">🛒 補貨</button>`;
+                                btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold shadow animate-pulse">📦 再次扣料</button>`; 
+                            }    
+                            else if (status === '待生產') { 
                                 btnSlot2 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
                                 btnSlot3 = `<button onclick="revertOmsDeduction('${oId}')" class="w-20 bg-red-400 text-white py-1 rounded font-bold shadow">🔙 退料</button>`; 
-                                btnSlot4 = `<button onclick="openWoModal('${oId}', '${encodeURIComponent(row['產品名稱']||'')}')" class="w-20 bg-green-600 text-white py-1 rounded font-bold shadow">📅 排程派工</button>`; 
+                                // 【需求 9】排程整合至規劃，扣料後直接啟動生產
+                                btnSlot4 = `<button onclick="startProduction('${oId}')" class="w-20 bg-green-600 text-white py-1 rounded font-bold shadow animate-pulse">🚀 開始生產</button>`; 
                             }
                             else if (status === '生產中') {
                                 btnSlot3 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
                                 btnSlot4 = `<button onclick="openMatModal('${oId}', 'addon')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold shadow">➕ 追加耗損</button>`;
                             }
-                            else if (status === '製作完成' || status === '已出貨' || status === '已結案') { 
+                            else if (status === '製作完成') { 
                                 btnSlot3 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
+                                // 【需求 2】結案前可印出貨單
                                 btnSlot4 = `<button onclick="printDeliveryNote(this, '${oId}')" class="w-20 bg-blue-600 text-white py-1 rounded hover:bg-blue-700 font-bold shadow animate-pulse">📄 印出貨單</button>`; 
                             }
+                            else if (status === '已出貨待OMS結案' || status === '已出貨') { 
+                                btnSlot2 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
+                                btnSlot3 = `<button onclick="printDeliveryNote(this, '${oId}')" class="w-20 bg-blue-600 text-white py-1 rounded font-bold shadow">📄 印出貨單</button>`; 
+                                // 【需求 12】結案操作鈕
+                                btnSlot4 = `<button onclick="closeOrder('${oId}')" class="w-20 bg-red-700 text-white py-1 rounded font-bold shadow animate-pulse">🔒 結案</button>`;
+                            }
+                            // 【需求 4】毛利按鈕一直顯示到結案前
+                            if (userShowFinance && status !== '估算中' && status !== '待規劃' && status !== '已結案') { 
+                                btnSlot2 = btnSlot2.includes('─') ? `<button onclick="printQuotation(${index})" class="w-20 bg-blue-500 text-white py-1 rounded font-bold shadow">📄 估價單</button>` : btnSlot2;
+                                if(btnSlot3.includes('─')) btnSlot3 = `<button onclick="printMarginReport(${index})" class="w-20 bg-purple-600 text-white py-1 rounded font-bold shadow">📈 毛利</button>`;
+                            }
+                            
                         }
                         else if (currentSysName === 'MES') {
                             const status = row['工單狀態']; const mac = row['作業機台']; const woId = row['工單編號']; const oId = row['關聯訂單'];
+                            let linkedOms = (systemCache['訂單管理']?.data || []).find(o => o['訂單編號'] === oId);
+                            if (linkedOms && linkedOms['訂單狀態'] === '已結案') return; // 不渲染
                             // 【功能 3 修正】MES 控制列按鈕字詞更新為「完成工序」
-                            if (status === '生產中') { btnSlot1 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 font-bold">🔧 報修</button>`; btnSlot2 = `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold">🛑 停工</button>`; btnSlot3 = `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-blue-600 text-white py-1 rounded font-bold shadow-sm">🏁 完成工序</button>`; } 
-                            else if (status === '已完工') { btnSlot4 = `<button onclick="openShippingModal('${woId}', '${oId}')" class="w-20 bg-emerald-600 text-white py-1 rounded font-bold animate-pulse shadow">🚚 出貨</button>`; } 
-                            else if (status === '已出貨') { btnSlot4 = `<span class="text-gray-400 font-bold w-20 text-center">已出貨結案</span>`; }
+                            if (status === '生產中') { 
+                                btnSlot1 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 font-bold">🔧 報修</button>`; 
+                                btnSlot2 = `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold">🛑 停工</button>`; 
+                                btnSlot3 = `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-blue-600 text-white py-1 rounded font-bold shadow-sm">🏁 完成工序</button>`; 
+                            } 
+                            else if (status === '已完工') {
+                                btnSlot4 = `<button onclick="openShippingModal('${woId}', '${oId}')" class="w-20 bg-emerald-600 text-white py-1 rounded font-bold animate-pulse shadow">🚚 出貨</button>`; 
+                            } 
+                            else if (status === '已出貨') { 
+                                btnSlot4 = `<span class="text-gray-400 font-bold w-20 text-center">已出貨結案</span>`; 
+                            }
+                            else if (status === '已出貨待OMS結案') { 
+                                // 【需求 10】MES 端也能印出貨單
+                                btnSlot4 = `<button onclick="printDeliveryNote(this, '${oId}')" class="w-20 bg-blue-600 text-white py-1 rounded font-bold shadow animate-pulse">📄 印出貨單</button>`; 
+                            }
                         }
                         else if (currentSysName === 'EQS') {
                             const status = row['當前狀態']; const mac = row['設備編號'];
                             const targetMacId = row['工序編號'] || row['設備編號'] || mac;
                             btnSlot1 = `<button onclick="openEqsHistory('${targetMacId}')" class="w-20 bg-gray-500 text-white py-1 rounded font-bold">📊 紀錄</button>`;
                             if (status === '報修中' || status === '掛修') btnSlot2 = `<button onclick="finishRepair('${mac}', this)" class="w-20 bg-green-600 text-white py-1 rounded font-bold">🛠️ 完修</button>`;
-                            else if (status === '生產中' || status === '待機中') { btnSlot2 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded font-bold">🔧 報修</button>`; btnSlot3 = `<button onclick="openMaintModal('${mac}')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold">💆 保養</button>`; }
+                            else if (status === '生產中' || status === '待機中') { 
+                                btnSlot2 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded font-bold">🔧 報修</button>`; 
+                                btnSlot3 = `<button onclick="openMaintModal('${mac}')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold">💆 保養</button>`; }
                         }
                         else if (currentSysName === 'ERP') { 
                             btnSlot1 = `<button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}')" class="w-24 bg-yellow-400 text-yellow-900 py-1 rounded hover:bg-yellow-500 font-bold shadow-sm">🛒 補貨申請</button>`; 
@@ -1273,46 +1313,48 @@
             execHTML2PDF(html, `補貨申請單_${repId}.pdf`);
         }
 
-        function generateWoPDF(orderId, pNameEncoded, cName) {
+        // ================= 派工單 (Req 7, 8) =================
+        function generateWoPDF(orderId) {
             const twDate = new Date(new Date().getTime() + 8*60*60*1000).toISOString().split('T')[0];
-            let orderWos = currentAllWos.filter(w => w['關聯訂單'] === orderId);
+            let row = currentTableData.find(r => r['訂單編號'] === orderId) || (systemCache['訂單管理']?.data || []).find(o => o['訂單編號'] === orderId);
+            if(!row) return alert('找不到該筆訂單資料！');
             
-            let orderMats = currentDeductLogs.filter(l => l.orderId === orderId);
-            let matMap = {};
-            orderMats.forEach(m => { matMap[m.matId] = (matMap[m.matId]||0) + parseFloat(m.qty); });
-            
+            let planSteps = []; try { planSteps = JSON.parse(row['工序規劃紀錄'] || "[]"); } catch(e){}
+            let stepHtml = '';
+            if (planSteps.length > 0) {
+                stepHtml = planSteps.map(s => {
+                    let mats = s.requiredMats.length > 0 ? s.requiredMats.join('<br>') : '<span class="text-gray-400">無用料</span>';
+                    return `<tr class="border-b border-gray-800 align-top">
+                        <td class="p-2 border-r border-gray-800 text-center font-bold">${s.seq}</td>
+                        <td class="p-2 border-r border-gray-800 font-bold">${s.name}<br><span class="text-[10px] text-gray-500 font-normal">(${s.mac})</span></td>
+                        <td class="p-2 border-r border-gray-800">${s.emp}</td>
+                        <td class="p-2 border-r border-gray-800 text-xs">${s.startDate.replace('T', ' ')}<br>|<br>${s.endDate.replace('T', ' ')}</td>
+                        <td class="p-2 text-xs leading-relaxed">${mats}</td>
+                    </tr>`;
+                }).join('');
+            } else { stepHtml = `<tr><td colspan="5" class="p-4 text-center text-gray-500">此訂單無工序規劃紀錄。</td></tr>`; }
+
             let html = `
-                <h1 class="text-3xl font-bold text-center mb-6 border-b-2 border-black pb-4">仕罡印刷 - 生產派工單</h1>
-                <div class="flex justify-between mb-4 text-sm"><p><strong>列印日期：</strong> ${twDate}</p><p><strong>列印人：</strong> ${document.getElementById('userNameDisplay').innerText}</p></div>
-                <div class="mb-6 p-4 border border-gray-800 bg-gray-50 rounded">
-                    <p class="mb-2"><strong>訂單編號：</strong> <span class="text-lg font-bold">${orderId}</span></p>
-                    <p class="mb-2"><strong>客戶名稱：</strong> ${cName}</p>
-                    <p><strong>產品名稱：</strong> ${decodeURIComponent(pNameEncoded)}</p>
-                </div>
-                
-                <h3 class="font-bold mb-2">工單明細</h3>
-                <table class="w-full text-left border-collapse border border-gray-800 text-sm mb-6">
-                    <thead class="bg-gray-200"><tr class="border-b border-gray-800"><th class="p-2 border-r border-gray-800">工單編號</th><th class="p-2 border-r border-gray-800">作業機台</th><th class="p-2 border-r border-gray-800">員工姓名</th><th class="p-2 border-r border-gray-800">完成日期</th><th class="p-2">工單狀態</th></tr></thead>
-                    <tbody>`;
-            orderWos.forEach(w => { html += `<tr class="border-b border-gray-800"><td class="p-2 border-r border-gray-800 font-bold">${w['工單編號']}</td><td class="p-2 border-r border-gray-800">${w['作業機台']}</td><td class="p-2 border-r border-gray-800">${w['員工姓名']}</td><td class="p-2 border-r border-gray-800">${w['完成日期']}</td><td class="p-2">${w['工單狀態']}</td></tr>`; });
-            html += `</tbody></table>`;
-
-            if(Object.keys(matMap).length > 0) {
-                html += `<h3 class="font-bold mb-2 mt-4">領料使用明細</h3>
-                <table class="w-full text-left border-collapse border border-gray-800 text-sm mb-10">
-                    <thead class="bg-gray-200"><tr class="border-b border-gray-800"><th class="p-2 border-r border-gray-800">物料編號</th><th class="p-2 border-r border-gray-800">品名與規格</th><th class="p-2 text-right">總領用數</th></tr></thead>
-                    <tbody>`;
-                Object.keys(matMap).forEach(mId => {
-                    let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === mId);
-                    let mName = matObj ? matObj.name.replace(mId+' - ', '') : '';
-                    html += `<tr class="border-b border-gray-800"><td class="p-2 border-r border-gray-800 font-bold">${mId}</td><td class="p-2 border-r border-gray-800">${mName}</td><td class="p-2 text-right font-bold text-red-700">${matMap[mId]}</td></tr>`;
-                });
-                html += `</tbody></table>`;
-            }
-
-            html += `<div class="flex justify-between mt-16 px-10">
-                    <div class="w-48 text-center border-t border-black pt-2"><p>生產人員簽名</p></div>
-                    <div class="w-48 text-center border-t border-black pt-2"><p>品檢人員簽名</p></div>
+                <div class="p-6 font-sans bg-white max-w-[210mm] mx-auto text-gray-800">
+                    <h1 class="text-3xl font-bold text-center mb-6 border-b-2 border-black pb-4">仕罡印刷 - 生產派工單</h1>
+                    <div class="flex justify-between mb-4 text-sm"><p><strong>列印日期：</strong> ${twDate}</p><p><strong>列印人：</strong> ${document.getElementById('userNameDisplay').innerText}</p></div>
+                    <div class="mb-6 p-4 border border-gray-800 bg-gray-50 rounded">
+                        <p class="mb-2"><strong>訂單編號：</strong> <span class="text-lg font-bold">${orderId}</span></p>
+                        <p class="mb-2"><strong>客戶名稱：</strong> ${row['客戶名稱']}</p>
+                        <p><strong>產品名稱：</strong> ${row['產品名稱']} ${row['完成尺寸'] ? '(尺寸: '+row['完成尺寸']+')' : ''}</p>
+                    </div>
+                    <h3 class="font-bold mb-2">📋 工序規劃指示</h3>
+                    <table class="w-full text-left border-collapse border border-gray-800 text-sm mb-6">
+                        <thead class="bg-gray-200"><tr class="border-b border-gray-800"><th class="p-2 border-r border-gray-800 w-10 text-center">順序</th><th class="p-2 border-r border-gray-800">工序與機台</th><th class="p-2 border-r border-gray-800 w-20">人員</th><th class="p-2 border-r border-gray-800 w-32">起訖時間</th><th class="p-2">配料提示</th></tr></thead>
+                        <tbody>${stepHtml}</tbody>
+                    </table>
+                    <div class="mt-4 p-4 border border-gray-800 rounded text-xs leading-relaxed">
+                        <p class="font-bold mb-1">【訂單備註與指示】</p>
+                        <p class="whitespace-pre-wrap">${row['訂單細項'] || '無'}</p>
+                    </div>
+                    <div class="flex justify-between mt-16 px-10">
+                        <div class="w-48 text-center border-t border-black pt-2"><p>現場領班簽收</p></div><div class="w-48 text-center border-t border-black pt-2"><p>品管確認</p></div>
+                    </div>
                 </div>`;
             execHTML2PDF(html, `派工單_${orderId}.pdf`);
         }
@@ -2353,30 +2395,24 @@
             btn.innerHTML = isHidden ? '🙈 隱藏金額' : '👁️ 顯示金額';
         }
         
-      // ================= 出貨單與條碼產生系統 (精緻商務版) =================
+      // ================= 出貨單 (Req 11) =================
         function printDeliveryNote(btn, orderId) {
-            btn.innerHTML = '<span class="btn-spinner"></span>讀取中'; btn.disabled = true;
-            
-            let orderRow = currentTableData.find(r => r['訂單編號'] === orderId);
+            const originalText = btn.innerHTML; btn.innerHTML = '<span class="btn-spinner"></span>讀取中'; btn.disabled = true;
+            let orderRow = currentTableData.find(r => r['訂單編號'] === orderId) || (systemCache['訂單管理']?.data || []).find(o => o['訂單編號'] === orderId);
             
             google.script.run.withSuccessHandler(res => {
                 let customers = res.data || [];
-                let ourInfo = customers.find(c => c['客戶代號'] === 'C00000000') || {};
+                // 【需求 11】硬核鎖定出貨方為 C00000001
+                let ourInfo = customers.find(c => c['客戶代號'] === 'C00000001' || c['客戶編號'] === 'C00000001') || {};
                 let custInfo = customers.find(c => c['客戶名稱'] === orderRow['客戶名稱']) || {};
                 
-                let canvas = document.createElement('canvas');
-                // 條碼稍微縮小一點
-                JsBarcode(canvas, orderId, { format: "CODE39", displayValue: false, height: 30, width: 1.5, margin: 0 });
+                let canvas = document.createElement('canvas'); JsBarcode(canvas, orderId, { format: "CODE39", displayValue: false, height: 30, width: 1.5, margin: 0 });
                 let barcodeBase64 = canvas.toDataURL('image/png');
                 
                 let isUrgentHtml = orderRow['急件'] === '是' ? `<div class="absolute top-2 right-2 border-2 border-red-600 text-red-600 font-bold text-lg px-4 py-1 transform rotate-12 opacity-80">急 件</div>` : '';
-                let qty = orderRow['數量'] || orderRow['訂單數量'] || '';
-                let remarkText = orderRow['備註'] || '依實物為準';
-                
-                let rawDate = orderRow['訂單日期'] || orderRow['建單日期'] || orderRow['日期'] || orderRow['建立日期'] || '如系統紀錄';
-                let orderDate = (rawDate && rawDate.includes('T')) ? rawDate.split('T')[0] : rawDate;
+                let qty = orderRow['數量'] || orderRow['訂單數量'] || ''; let remarkText = orderRow['備註'] || '依實物為準';
+                let rawDate = orderRow['訂單日期'] || orderRow['建單日期'] || orderRow['日期'] || '如系統紀錄'; let orderDate = (rawDate && rawDate.includes('T')) ? rawDate.split('T')[0] : rawDate;
 
-                // 調整所有文字為 text-sm (約14px) 與 text-xs (約12px)，並縮減間距
                 let html = `
                 <div class="relative p-6 text-gray-800 font-sans bg-white min-h-[250mm] max-w-[210mm] mx-auto">
                     ${isUrgentHtml}
@@ -2384,62 +2420,77 @@
                         <h1 class="text-2xl font-bold tracking-widest">${ourInfo['客戶名稱'] || ourInfo['公司名稱'] || '仕罡印刷'}</h1>
                         <p class="text-lg tracking-widest mt-1 font-bold">出 貨 單</p>
                     </div>
-                    
                     <div class="flex justify-between items-start mb-6">
                         <div class="w-1/2 text-xs leading-relaxed">
                             <p class="mb-1 text-[10px] text-gray-500 font-bold">【出貨方】</p>
-                            <p>統一編號：${ourInfo['統一編號'] || '未建檔'}</p>
-                            <p>聯絡電話：${ourInfo['聯絡電話'] || '未建檔'}</p>
-                            <p>公司地址：${ourInfo['聯絡地址'] || '未建檔'}</p>
+                            <p>統一編號：${ourInfo['統一編號'] || '未建檔'}</p><p>聯絡電話：${ourInfo['聯絡電話'] || '未建檔'}</p><p>公司地址：${ourInfo['聯絡地址'] || '未建檔'}</p>
                         </div>
                         <div class="w-1/2 text-right">
                             <img src="${barcodeBase64}" class="inline-block mb-2 h-10">
-                            <p class="text-xs tracking-wider">出貨單號：<strong>${orderId}</strong></p>
-                            <p class="text-xs mt-1">訂購日期：${orderDate}</p>
-                            <p class="text-[10px] text-gray-500 mt-1">列印日期：${new Date().toISOString().split('T')[0]}</p>
+                            <p class="text-xs tracking-wider">出貨單號：<strong>${orderId}</strong></p><p class="text-xs mt-1">訂購日期：${orderDate}</p><p class="text-[10px] text-gray-500 mt-1">列印日期：${new Date().toISOString().split('T')[0]}</p>
                         </div>
                     </div>
-
                     <div class="border border-gray-800 p-3 mb-6 bg-gray-50 text-xs leading-relaxed rounded-sm">
                         <p class="mb-1 text-[10px] text-gray-500 font-bold">【收貨方】</p>
                         <p class="text-sm mb-1">客戶名稱：<strong>${custInfo['客戶名稱'] || orderRow['客戶名稱']}</strong></p>
-                        <p>統一編號：${custInfo['統一編號'] || ''}</p>
-                        <p>聯絡窗口：${custInfo['聯絡人'] || '負責人'} / ${custInfo['聯絡電話'] || ''}</p>
-                        <p>送貨地址：${custInfo['聯絡地址'] || ''}</p>
+                        <p>統一編號：${custInfo['統一編號'] || ''}</p><p>聯絡窗口：${custInfo['聯絡人'] || '負責人'} / ${custInfo['聯絡電話'] || ''}</p><p>送貨地址：${custInfo['聯絡地址'] || ''}</p>
                     </div>
-
                     <table class="w-full text-left border-collapse border border-gray-800 mb-12 text-sm">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="border border-gray-800 p-2 w-12 text-center font-bold">項次</th>
-                                <th class="border border-gray-800 p-2 font-bold">產品名稱與規格</th>
-                                <th class="border border-gray-800 p-2 w-20 text-center font-bold">數量</th>
-                                <th class="border border-gray-800 p-2 w-32 font-bold text-center">備註</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="border border-gray-800 p-3 text-center">1</td>
-                                <td class="border border-gray-800 p-3 font-bold text-base text-moText">${orderRow['產品名稱']}</td>
-                                <td class="border border-gray-800 p-3 text-center font-bold text-lg tracking-wider">${qty}</td>
-                                <td class="border border-gray-800 p-3 text-gray-600 text-xs text-center">${remarkText}</td>
-                            </tr>
-                        </tbody>
+                        <thead class="bg-gray-100"><tr><th class="border border-gray-800 p-2 w-12 text-center font-bold">項次</th><th class="border border-gray-800 p-2 font-bold">產品名稱與規格</th><th class="border border-gray-800 p-2 w-20 text-center font-bold">數量</th><th class="border border-gray-800 p-2 w-32 font-bold text-center">備註</th></tr></thead>
+                        <tbody><tr><td class="border border-gray-800 p-3 text-center">1</td><td class="border border-gray-800 p-3 font-bold text-base text-moText">${orderRow['產品名稱']}</td><td class="border border-gray-800 p-3 text-center font-bold text-lg tracking-wider">${qty}</td><td class="border border-gray-800 p-3 text-gray-600 text-xs text-center">${remarkText}</td></tr></tbody>
                     </table>
-
                     <div class="flex justify-between mt-20 px-8 text-xs">
-                        <div class="w-48 text-center border-t border-gray-800 pt-2"><p class="font-bold tracking-widest">出貨部門簽章</p></div>
-                        <div class="w-48 text-center border-t border-gray-800 pt-2"><p class="font-bold tracking-widest">客戶簽收確認</p></div>
+                        <div class="w-48 text-center border-t border-gray-800 pt-2"><p class="font-bold tracking-widest">出貨部門簽章</p></div><div class="w-48 text-center border-t border-gray-800 pt-2"><p class="font-bold tracking-widest">客戶簽收確認</p></div>
                     </div>
-                </div>
-                `;
-                
-                execHTML2PDF(html, `出貨單_${orderId}.pdf`);
-                btn.innerHTML = '📄 出貨單'; btn.disabled = false;
-            }).withFailureHandler(err => {
-                alert("讀取客戶資料失敗：" + err);
-                btn.innerHTML = '📄 出貨單'; btn.disabled = false;
-            }).getSheetData('客戶資料'); 
+                </div>`;
+                execHTML2PDF(html, `出貨單_${orderId}.pdf`); btn.innerHTML = originalText; btn.disabled = false;
+            }).withFailureHandler(err => { alert("讀取資料失敗：" + err); btn.innerHTML = originalText; btn.disabled = false; }).getSheetData('客戶資料'); 
+        }
+
+        // ================= 派工單 (Req 7, 8) =================
+        function generateWoPDF(orderId) {
+            const twDate = new Date(new Date().getTime() + 8*60*60*1000).toISOString().split('T')[0];
+            let row = currentTableData.find(r => r['訂單編號'] === orderId) || (systemCache['訂單管理']?.data || []).find(o => o['訂單編號'] === orderId);
+            if(!row) return alert('找不到該筆訂單資料！');
+            
+            let planSteps = []; try { planSteps = JSON.parse(row['工序規劃紀錄'] || "[]"); } catch(e){}
+            let stepHtml = '';
+            if (planSteps.length > 0) {
+                stepHtml = planSteps.map(s => {
+                    let mats = s.requiredMats.length > 0 ? s.requiredMats.join('<br>') : '<span class="text-gray-400">無用料</span>';
+                    return `<tr class="border-b border-gray-800 align-top">
+                        <td class="p-2 border-r border-gray-800 text-center font-bold">${s.seq}</td>
+                        <td class="p-2 border-r border-gray-800 font-bold">${s.name}<br><span class="text-[10px] text-gray-500 font-normal">(${s.mac})</span></td>
+                        <td class="p-2 border-r border-gray-800">${s.emp}</td>
+                        <td class="p-2 border-r border-gray-800 text-xs">${s.startDate.replace('T', ' ')}<br>|<br>${s.endDate.replace('T', ' ')}</td>
+                        <td class="p-2 text-xs leading-relaxed">${mats}</td>
+                    </tr>`;
+                }).join('');
+            } else { stepHtml = `<tr><td colspan="5" class="p-4 text-center text-gray-500">此訂單無工序規劃紀錄。</td></tr>`; }
+
+            let html = `
+                <div class="p-6 font-sans bg-white max-w-[210mm] mx-auto text-gray-800">
+                    <h1 class="text-3xl font-bold text-center mb-6 border-b-2 border-black pb-4">仕罡印刷 - 生產派工單</h1>
+                    <div class="flex justify-between mb-4 text-sm"><p><strong>列印日期：</strong> ${twDate}</p><p><strong>列印人：</strong> ${document.getElementById('userNameDisplay').innerText}</p></div>
+                    <div class="mb-6 p-4 border border-gray-800 bg-gray-50 rounded">
+                        <p class="mb-2"><strong>訂單編號：</strong> <span class="text-lg font-bold">${orderId}</span></p>
+                        <p class="mb-2"><strong>客戶名稱：</strong> ${row['客戶名稱']}</p>
+                        <p><strong>產品名稱：</strong> ${row['產品名稱']} ${row['完成尺寸'] ? '(尺寸: '+row['完成尺寸']+')' : ''}</p>
+                    </div>
+                    <h3 class="font-bold mb-2">📋 工序規劃指示</h3>
+                    <table class="w-full text-left border-collapse border border-gray-800 text-sm mb-6">
+                        <thead class="bg-gray-200"><tr class="border-b border-gray-800"><th class="p-2 border-r border-gray-800 w-10 text-center">順序</th><th class="p-2 border-r border-gray-800">工序與機台</th><th class="p-2 border-r border-gray-800 w-20">人員</th><th class="p-2 border-r border-gray-800 w-32">起訖時間</th><th class="p-2">配料提示</th></tr></thead>
+                        <tbody>${stepHtml}</tbody>
+                    </table>
+                    <div class="mt-4 p-4 border border-gray-800 rounded text-xs leading-relaxed">
+                        <p class="font-bold mb-1">【訂單備註與指示】</p>
+                        <p class="whitespace-pre-wrap">${row['訂單細項'] || '無'}</p>
+                    </div>
+                    <div class="flex justify-between mt-16 px-10">
+                        <div class="w-48 text-center border-t border-black pt-2"><p>現場領班簽收</p></div><div class="w-48 text-center border-t border-black pt-2"><p>品管確認</p></div>
+                    </div>
+                </div>`;
+            execHTML2PDF(html, `派工單_${orderId}.pdf`);
         }
 
         // ================= 修改個人密碼控制邏輯 =================
@@ -2957,27 +3008,56 @@
             addPlanRow(); document.getElementById('planModal').classList.remove('hidden');
         }
 
+        // ================= 【需求 4, 9】工序規劃：起訖時間與用料提示 =================
         function addPlanRow() {
             let container = document.getElementById('planStepsContainer');
             let idx = container.querySelectorAll('.plan-row').length + 1;
+            let listId = 'dl_mac_plan_' + Date.now() + '_' + idx;
+            let empListId = 'dl_emp_plan_' + Date.now() + '_' + idx;
+            
+            let mOpts = ''; let eOpts = '';
+            if(currentDropdowns['作業機台']) { currentDropdowns['作業機台'].forEach(m => { let cleanName = m.name.replace(/\[|\]/g, ''); mOpts += `<option value="${m.id} - ${cleanName}"></option>`; }); }
+            if(currentDropdowns['員工姓名']) { currentDropdowns['員工姓名'].forEach(e => { let eId = typeof e === 'object' ? e.id : e; let eName = typeof e === 'object' ? e.name : e; eOpts += `<option value="${eId}">${eName}</option>`; }); }
             
             let matOpts = window.tempBomForPlan.map(m => {
                 let matObj = (currentDropdowns['物料編號']||[]).find(opt => opt.id === m.id);
                 let n = matObj ? matObj.name.replace(m.id+' - ', '') : m.id;
-                return `<label class="flex items-center gap-1"><input type="checkbox" value="${m.id}" class="step-mat-cb"> ${n} (核定: ${m.qty})</label>`;
+                return `<label class="flex items-center gap-1"><input type="checkbox" value="${n} (${m.qty})" class="step-mat-cb w-4 h-4 text-indigo-600"> <span class="text-gray-700">${n} (量: ${m.qty})</span></label>`;
             }).join('');
-            if(!matOpts) matOpts = '<span class="text-red-400">此單無配料</span>';
+            if(!matOpts) matOpts = '<span class="text-red-400">估算階段無配料，不需提示。</span>';
 
-            let div = document.createElement('div'); div.className = 'plan-row border border-indigo-200 bg-white p-3 rounded-lg flex flex-col gap-2 relative shadow-sm';
+            let div = document.createElement('div'); div.className = 'plan-row border border-indigo-200 bg-white p-4 rounded-lg flex flex-col gap-3 relative shadow-sm';
             div.innerHTML = `
-                <div class="absolute -top-2 -left-2 bg-indigo-500 text-white w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs shadow">${idx}</div>
-                <button onclick="this.closest('.plan-row').remove()" class="absolute top-1 right-2 text-gray-400 hover:text-red-500 font-bold">&times;</button>
-                <div class="pl-4">
-                    <input type="text" class="step-name w-full p-2 border-b focus:outline-none focus:border-indigo-500 font-bold text-indigo-900 text-sm" placeholder="輸入工序名稱 (例如：150P 雙銅 印刷)">
-                    <div class="mt-2 p-2 bg-gray-50 rounded border border-dashed border-gray-300 text-xs">
-                        <span class="block mb-1 font-bold text-gray-500">此工序需用材料提示 (可複選，不干涉實體扣料)</span>
-                        <div class="flex flex-wrap gap-3">${matOpts}</div>
+                <div class="absolute -top-3 -left-3 bg-indigo-600 text-white w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm shadow-md border-2 border-white">${idx}</div>
+                <button onclick="this.closest('.plan-row').remove()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold text-lg">&times;</button>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-1">
+                    <div>
+                        <label class="block text-[10px] text-moSide font-bold mb-1">🔍 選擇工序機台</label>
+                        <input list="${listId}" class="step-mac w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 font-bold text-indigo-900 text-sm" placeholder="輸入編號/名稱搜尋...">
+                        <datalist id="${listId}">${mOpts}</datalist>
                     </div>
+                    <div>
+                        <label class="block text-[10px] text-moSide font-bold mb-1">👤 負責人員</label>
+                        <input list="${empListId}" class="step-emp w-full p-2 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 text-sm" placeholder="指派人員...">
+                        <datalist id="${empListId}">${eOpts}</datalist>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] text-moSide font-bold mb-1">📅 預計開始時間</label>
+                        <input type="datetime-local" class="step-start-date w-full p-2 border border-gray-300 rounded text-sm text-gray-700 focus:ring-1 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-moSide font-bold mb-1">📅 預計完成時間</label>
+                        <input type="datetime-local" class="step-end-date w-full p-2 border border-gray-300 rounded text-sm text-gray-700 focus:ring-1 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div class="p-3 bg-indigo-50 rounded border border-dashed border-indigo-200 text-xs">
+                    <span class="block mb-2 font-bold text-indigo-800 border-b border-indigo-200 pb-1">📦 勾選此工序會用到的材料提示 (列印工單用)</span>
+                    <div class="flex flex-col gap-2">${matOpts}</div>
                 </div>`;
             container.appendChild(div);
         }
@@ -2987,18 +3067,37 @@
             let rows = document.querySelectorAll('.plan-row');
             let planSteps = [];
             for(let i=0; i<rows.length; i++) {
-                let name = rows[i].querySelector('.step-name').value.trim();
-                if(!name) return alert(`請填寫第 ${i+1} 步驟的工序名稱！`);
+                let macInput = rows[i].querySelector('.step-mac').value.trim(); let macId = macInput.split(' ')[0];
+                let name = macInput.split('|').length > 1 ? macInput.split('|')[1].trim() : macId;
+                let emp = rows[i].querySelector('.step-emp').value.trim();
+                let startDate = rows[i].querySelector('.step-start-date').value;
+                let endDate = rows[i].querySelector('.step-end-date').value;
+                if(!macId || !emp || !startDate || !endDate) return alert(`請完整填寫第 ${i+1} 步驟的機台、人員與起訖時間！`);
+                
                 let mats = Array.from(rows[i].querySelectorAll('.step-mat-cb:checked')).map(cb => cb.value);
-                planSteps.push({ seq: i+1, name: name, requiredMats: mats });
+                planSteps.push({ seq: i+1, name: name, mac: macId, emp: emp, startDate: startDate, endDate: endDate, requiredMats: mats });
             }
             if(planSteps.length === 0) return alert("請至少建立一個工序！");
             
-            btn.innerHTML = '<span class="btn-spinner"></span>處理中'; btn.disabled = true;
+            btn.innerHTML = '<span class="btn-spinner"></span>儲存中'; btn.disabled = true;
             google.script.run.withSuccessHandler(res => {
                 alert(res.msg); closeModal('planModal'); refreshSystem(); btn.innerHTML = '儲存規劃並推進待扣料'; btn.disabled = false;
             }).saveProcessPlan(orderId, planSteps);
         }
+
+        function startProduction(orderId) {
+            if(!confirm("確定廠區設備狀態，並正式開工投入生產嗎？")) return;
+            const op = document.getElementById('userNameDisplay').innerText;
+            document.getElementById('tableContainer').innerHTML = `<div class="p-20 text-center"><div class="w-10 h-10 border-4 border-moSide border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>正在驗證機台容量與啟動生產...</div>`;
+            google.script.run.withSuccessHandler(res => { alert(res.msg); refreshSystem(); }).withFailureHandler(err => { alert(err); refreshSystem(); }).startProductionWO(orderId, op);
+        }
+        function closeOrder(orderId) {
+            if(!confirm(`確定要將訂單 [${orderId}] 正式結案嗎？\n結案後將從現場 MES 面板隱藏。`)) return;
+            const op = document.getElementById('userNameDisplay').innerText;
+            document.getElementById('tableContainer').innerHTML = `<div class="p-20 text-center"><div class="w-10 h-10 border-4 border-moSide border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>結案處理中...</div>`;
+            google.script.run.withSuccessHandler(res => { alert(res.msg); refreshSystem(); }).closeOrderWO(orderId, op);
+        }
+        
     </script>
     <div id="changePwdModal" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-xl w-full max-w-sm border border-gray-300 flex flex-col shadow-lg overflow-hidden">
