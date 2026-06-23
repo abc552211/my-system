@@ -693,7 +693,13 @@
                 tableHTML += `<tr><td colspan="15" class="p-10 text-center text-gray-400 tracking-wider">目前尚無資料。</td></tr>`;
             } else {
                 currentTableData.forEach((row, index) => {
-                    const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+    // 【新增防護】若為 MES 系統且對應的 OMS 訂單已結案，則直接跳過不渲染該列
+    if (currentSysName === 'MES') {
+        let linkedOms = (systemCache['訂單管理']?.data || []).find(o => o['訂單編號'] === row['關聯訂單']);
+        if (linkedOms && linkedOms['訂單狀態'] === '已結案') return;
+    }
+
+    const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                     let isLowStock = false; let isRestocking = false; let restockQty = 0;
                     
                     if(currentSysName === 'ERP') {
@@ -736,10 +742,10 @@
                                 let badgeClass = 'status-gray'; let pulseClass = '';  
                                 if(val === '原料不足' || val === '報修中' || val === '待修中' || val === '掛修') badgeClass = 'status-red';
                                 else if(val === '估算中') badgeClass = 'bg-purple-100 text-purple-700 border border-purple-200 font-bold';
-                                else if(val === '待規劃') badgeClass = 'bg-purple-100 text-purple-700 border border-purple-300 font-bold';
-                                else if(val === '待排程') badgeClass = 'bg-yellow-200 text-green-700 border border-yellow-400 font-bold';
+                                else if(val === '待規劃') badgeClass = 'bg-purple-100 text-purple-700 border border-purple-400 font-bold'; // 加深邊框顯色
+                                else if(val === '待排程') badgeClass = 'bg-yellow-100 text-yellow-700 border border-yellow-300 font-bold';
                                 else if(val === '待扣料') badgeClass = 'bg-yellow-100 text-yellow-800 border border-yellow-300 font-bold';
-                                else if(val === '待生產') badgeClass = 'bg-green-100 text-green-700 border border-green-300 font-bold';
+                                else if(val === '待生產') badgeClass = 'bg-green-100 text-green-700 border border-green-400 font-bold'; // 優化正綠色醒目文字
                                 else if(val === '備料中') badgeClass = 'status-yellow';
                                 else if(val === '生產中' || val === '已接單') { badgeClass = 'status-blue'; pulseClass = ' animate-pulse shadow-sm'; }
                                 else if(val === '製作完成' || val === '已完工' || val === '已出貨') badgeClass = 'bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold';
@@ -795,10 +801,12 @@
                     // 【需求 6 修復】ERP 印單按鈕與進貨總金額顯示
                     let mReplenish = currentReplenish.filter(r => r.matId === mId && r.status !== '已結案');
                     let replHtml = mReplenish.map(r => {
-                        let formattedTime = r.time.replace('T', ' ').substring(0, 19);
-                        return `<tr><td class="p-1 border">${formattedTime}</td><td class="p-1 border font-mono">${r.repId}</td><td class="p-1 border text-orange-600 font-bold">${r.reqQty}</td><td class="p-1 border text-blue-600 font-bold">${r.inQty}</td>
-                        <td class="p-1 border text-center w-28">
-                            <button onclick="generateReplenishPDF('${r.repId}', '${r.reqQty}', '${r.matId}', '${r.supplier}', '${r.reason||''}')" class="bg-gray-600 text-white px-2 py-0.5 rounded text-[10px] hover:bg-gray-700 shadow-sm mr-1">🖨️ 印單</button>
+    let formattedTime = r.time.replace('T', ' ').substring(0, 19);
+    // 使用網址安全編碼包裝原因欄位，徹底防止因為特殊引號或換行字元導致印單按鈕卡死
+    let safeReason = encodeURIComponent(r.reason || '');
+    return `<tr><td class="p-1 border">${formattedTime}</td><td class="p-1 border font-mono">${r.repId}</td><td class="p-1 border text-orange-600 font-bold">${r.reqQty}</td><td class="p-1 border text-blue-600 font-bold">${r.inQty}</td>
+    <td class="p-1 border text-center w-28">
+        <button onclick="generateReplenishPDF('${r.repId}', '${r.reqQty}', '${r.matId}', '${r.supplier}', decodeURIComponent('${safeReason}'))" class="bg-gray-600 text-white px-2 py-0.5 rounded text-[10px] hover:bg-gray-700 shadow-sm mr-1">🖨️ 印單</button>
                             <button onclick="openRestockFromRepl('${r.repId}', '${r.matId}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}', ${r.reqQty - r.inQty})" class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] hover:bg-blue-700 transition-colors shadow-sm">📦 進貨</button>
                         </td></tr>`;
                     }).join('');
@@ -858,10 +866,11 @@
                     detailsHTML += `</tbody></table></div>`;
 
                     if(matchedAnomalies.length > 0) {
-                        detailsHTML += `<div><span class="font-bold text-red-600 block mb-1">⚠️ 歷史供貨異常紀錄</span><table class="w-full text-[11px] bg-white border border-red-200 border-collapse text-left"><thead><tr class="bg-red-50 text-red-700"><th class="p-1 border border-red-200">時間</th><th class="p-1 border border-red-200">物料</th><th class="p-1 border border-red-200">異常量</th><th class="p-1 border border-red-200">異常說明</th><th class="p-1 border border-red-200">登記人</th></tr></thead><tbody>`;
-                        matchedAnomalies.forEach(ma => { detailsHTML += `<tr><td class="p-1 border border-red-100">${ma.time.replace('T', ' ').substring(0, 19)}</td><td class="p-1 border border-red-100">${ma.matId}</td><td class="p-1 border border-red-100 text-red-600 font-bold">${ma.qty}</td><td class="p-1 border border-red-100">${ma.reason}</td><td class="p-1 border border-red-100">${ma.op}</td></tr>`; });
-                        detailsHTML += `</tbody></table></div>`;
-                    } else {
+    detailsHTML += `<div><span class="font-bold text-red-600 block mb-1">⚠️ 歷史供貨異常紀錄</span><table class="w-full text-[11px] bg-white border border-red-200 border-collapse text-left"><thead><tr class="bg-red-50 text-red-700"><th class="p-1 border border-red-200">時間</th><th class="p-1 border border-red-200">物料</th><th class="p-1 border border-red-200">廠商出貨單號</th><th class="p-1 border border-red-200">補貨單號</th><th class="p-1 border border-red-200">異常量</th><th class="p-1 border border-red-200">異常說明</th><th class="p-1 border border-red-200">登記人</th></tr></thead><tbody>`;
+    matchedAnomalies.forEach(ma => { detailsHTML += `<tr><td class="p-1 border border-red-100">${ma.time.replace('T', ' ').substring(0, 19)}</td><td class="p-1 border border-red-100">${ma.matId}</td><td class="p-1 border border-red-100">${ma.vendorShipId || '-'}</td><td class="p-1 border border-red-100">${ma.repId || '-'}</td><td class="p-1 border border-red-100 text-red-600 font-bold">${ma.qty}</td><td class="p-1 border border-red-100">${ma.reason}</td><td class="p-1 border border-red-100">${ma.op}</td></tr>`; });
+    detailsHTML += `</tbody></table></div>`;
+} 
+                    else {
                         detailsHTML += `<p class="text-green-600 font-bold bg-green-50 p-2 rounded border border-green-200">✅ 該供應商目前無任何供貨異常紀錄</p>`;
                     }
                     detailsHTML += `<button onclick="exportSupplierHistory('${sName}')" class="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm hover:bg-indigo-700 transition-colors">📥 匯出供貨商品全生命週期明細</button>`;
@@ -1025,18 +1034,19 @@
                                 // 【需求 12】結案操作鈕
                                 btnSlot4 = `<button onclick="closeOrder('${oId}')" class="w-20 bg-red-700 text-white py-1 rounded font-bold shadow animate-pulse">🔒 結案</button>`;
                             }
-                            // 【需求 4】毛利按鈕一直顯示到結案前
-                            if (userShowFinance && status !== '估算中' && status !== '待規劃' && status !== '已結案') { 
-                                btnSlot2 = btnSlot2.includes('─') ? `<button onclick="printQuotation(${index})" class="w-20 bg-blue-500 text-white py-1 rounded font-bold shadow">📄 估價單</button>` : btnSlot2;
-                            if(btnSlot3.includes('─')) btnSlot3 = `<button onclick="printMarginReport(${index})" class="w-20 bg-purple-600 text-white py-1 rounded font-bold shadow">📈 毛利</button>`;
+                            // 毛利按鈕優化：只要擁有財務檢視權限，不限單據狀態全面持續開放顯示
+                        if (userShowFinance) {
+                        if (btnSlot3.includes('─') || btnSlot3.includes('text-gray-300')) {
+                           btnSlot3 = `<button onclick="printMarginReport(${index})" class="w-20 bg-purple-600 text-white py-1 rounded font-bold shadow">📈 毛利</button>`;
                             }
+                         }
                             
                         }
                         // 【需求 4 修復】MES 展開面板員工姓名查閱與按鈕
                     if (currentSysName === 'MES') {
                         const status = row['工單狀態']; const mac = row['作業機台']; const woId = row['工單編號']; const oId = row['關聯訂單'];
                         let linkedOms = (systemCache['訂單管理']?.data || []).find(o => o['訂單編號'] === oId);
-                        if (linkedOms && linkedOms['訂單狀態'] === '已結案') return; 
+                        
 
                         let matHtml = '<span class="text-gray-400">無法讀取用料</span>';
                         if (linkedOms && linkedOms['配料明細']) {
