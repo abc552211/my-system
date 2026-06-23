@@ -611,6 +611,8 @@
                     eipHtml += `<p class="text-gray-400 text-center py-8 bg-gray-50 rounded-lg border border-dashed">目前無掛載交接事項</p>`;
                 } else {
                     const priorityWeight = { '高': 1, '中': 2, '低': 3 };
+                    // 【需求 1】強固過濾：只保留唯一發布時間的交接事項，消滅重複
+                    let uniqueHandovers = Array.from(new Map(currentHandovers.map(item => [item.time, item])).values());
                     let sortedHandovers = [...currentHandovers].sort((a, b) => {
                         let pA = priorityWeight[a.priority] || 4;
                         let pB = priorityWeight[b.priority] || 4;
@@ -882,16 +884,37 @@
                     }
 
                     if (currentSysName === 'OMS') {
-                        let bizHtml = `<div class="grid grid-cols-2 md:grid-cols-7 gap-3 p-3 bg-purple-50 rounded-xl border border-purple-100 mb-4 text-xs font-bold text-gray-700 shadow-inner">`;
-                        const targetKeys = ['數量', '預估良率', '產出量', '預估成本', '運費成本', '運費報價', '運費備註'];
+                        let bizHtml = `<div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-purple-50 rounded-xl border border-purple-100 mb-4 text-xs font-bold text-gray-700 shadow-inner">`;
+                        const targetKeys = ['數量', '預估良率', '產出量', '運費成本', '運費報價', '運費備註', '貨運單號', '出貨時間'];
                         targetKeys.forEach(k => {
                             let v = row[k] || '0'; let isFin = k.includes('成本') || k.includes('報價') || k.includes('金額');
                             if (!userShowFinance && isFin) { v = `<span class="text-gray-400 italic">🔒 鎖定</span>`; } 
                             else if (isFin && !isNaN(v) && v !== '') { v = `$ ` + parseFloat(v).toLocaleString(); } 
                             else if (k === '預估良率' && v !== '' && !v.toString().includes('%')) { v = v + ` %`; }
-                            bizHtml += `<div><span class="text-gray-400 block mb-0.5 text-[11px]">${k}</span><span class="text-moSide text-sm font-extrabold">${v}</span></div>`;
+                            bizHtml += `<div><span class="text-gray-400 block mb-0.5 text-[11px]">${k}</span><span class="text-moSide text-sm font-extrabold truncate block">${v}</span></div>`;
                         });
                         bizHtml += `</div>`; detailsHTML = bizHtml + detailsHTML;
+                        // 【需求 3】把工序規劃紀錄在「查看」面板內以小表格呈現
+                        if (row['工序規劃紀錄']) {
+                            try {
+                                let planSteps = JSON.parse(row['工序規劃紀錄']);
+                                if (planSteps.length > 0) {
+                                    let stepHtml = planSteps.map(s => `<tr><td class="p-1.5 border border-gray-300 text-center">${s.seq}</td><td class="p-1.5 border border-gray-300">${s.name} <span class="text-gray-500 text-[10px]">(${s.mac})</span></td><td class="p-1.5 border border-gray-300">${s.emp}</td><td class="p-1.5 border border-gray-300 text-[10px] font-mono">${s.startDate} ~ <br>${s.endDate}</td><td class="p-1.5 border border-gray-300 text-[10px]">${s.requiredMats.join(', ')}</td></tr>`).join('');
+                                    detailsHTML += `<strong class="text-moSide font-bold text-xs block mt-2">📋 工序規劃指示:</strong><table class="w-full text-xs text-left border-collapse border border-gray-300 mt-1 mb-3"><thead><tr class="bg-gray-100"><th class="p-1 border border-gray-300 w-10 text-center">順序</th><th class="p-1 border border-gray-300">工序與機台</th><th class="p-1 border border-gray-300 w-16">人員</th><th class="p-1 border border-gray-300 w-32">起訖時間</th><th class="p-1 border border-gray-300">用料提示</th></tr></thead><tbody>${stepHtml}</tbody></table>`;
+                                }
+                            } catch(e){}
+                        }
+
+                        // 【需求 6】示意圖獨立縮圖，可點擊放大
+                        if (row['示意圖']) {
+                            try {
+                                let imgs = JSON.parse(row['示意圖']);
+                                if(imgs.length > 0) {
+                                    let imgHtml = imgs.map(src => `<img src="${src}" onclick="openImageModal(this.src)" class="h-16 w-16 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">`).join('');
+                                    detailsHTML += `<strong class="text-moSide font-bold text-xs block mt-2">🖼️ 示意圖:</strong><div class="flex gap-2 mt-1 mb-3">${imgHtml}</div>`;
+                                }
+                            } catch(e){}
+                        }
 
                         // ================= 【一單到底：JSON工序明細深度解析追蹤】 =================
                         let woLogs = currentAllWos.filter(w => w['關聯訂單'] === row['訂單編號']);
@@ -1005,23 +1028,39 @@
                         else if (currentSysName === 'MES') {
                             const status = row['工單狀態']; const mac = row['作業機台']; const woId = row['工單編號']; const oId = row['關聯訂單'];
                             let linkedOms = (systemCache['訂單管理']?.data || []).find(o => o['訂單編號'] === oId);
-                            if (linkedOms && linkedOms['訂單狀態'] === '已結案') return; // 不渲染
-                            // 【功能 3 修正】MES 控制列按鈕字詞更新為「完成工序」
-                            if (status === '生產中') { 
-                                btnSlot1 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 font-bold">🔧 報修</button>`; 
-                                btnSlot2 = `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold">🛑 停工</button>`; 
-                                btnSlot3 = `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-blue-600 text-white py-1 rounded font-bold shadow-sm">🏁 完成工序</button>`; 
-                            } 
-                            else if (status === '已完工') {
-                                btnSlot4 = `<button onclick="openShippingModal('${woId}', '${oId}')" class="w-20 bg-emerald-600 text-white py-1 rounded font-bold animate-pulse shadow">🚚 出貨</button>`; 
-                            } 
-                            else if (status === '已出貨') { 
-                                btnSlot4 = `<span class="text-gray-400 font-bold w-20 text-center">已出貨結案</span>`; 
+                            if (linkedOms && linkedOms['訂單狀態'] === '已結案') return; 
+
+                            // 【需求 6】為 MES 面板加上查看按鈕，以顯示用料與進度
+                            let matHtml = '<span class="text-gray-400">無法讀取用料</span>';
+                            if (linkedOms && linkedOms['配料明細']) {
+                                try {
+                                    let bom = JSON.parse(linkedOms['配料明細']);
+                                    if(bom.length>0) {
+                                        matHtml = `<table class="w-full text-xs text-left border-collapse border border-gray-300"><thead><tr class="bg-gray-100"><th class="p-1 border border-gray-300">物料</th><th class="p-1 border border-gray-300 w-16 text-center">用量</th></tr></thead><tbody>` + bom.map(m => `<tr><td class="p-1 border border-gray-300">${m.id}</td><td class="p-1 border border-gray-300 text-center font-bold text-red-600">${m.qty}</td></tr>`).join('') + `</tbody></table>`;
+                                    }
+                                } catch(e){}
                             }
-                            else if (status === '已出貨待OMS結案') { 
-                                // 【需求 10】MES 端也能印出貨單
-                                btnSlot4 = `<button onclick="printDeliveryNote(this, '${oId}')" class="w-20 bg-blue-600 text-white py-1 rounded font-bold shadow animate-pulse">📄 印出貨單</button>`; 
-                            }
+                            
+                            let stepsHtml = '';
+                            try {
+                                let steps = JSON.parse(row['工序明細'] || "[]"); let currentIdx = parseInt(row['當前進度索引']) || 0;
+                                if(steps.length > 0) {
+                                    let sRows = steps.map((s, idx) => {
+                                        let isDone = idx < currentIdx; let isCurr = idx === currentIdx;
+                                        let sStatus = isDone ? '已完工' : (isCurr ? status : '等待中');
+                                        let color = isDone ? 'text-green-600' : (isCurr ? 'text-blue-600 font-bold' : 'text-gray-400');
+                                        let outQtyText = s.outQty !== undefined ? `<br><span class="text-[10px] text-green-700">產出: ${s.outQty}</span>` : '';
+                                        return `<tr class="${isCurr ? 'bg-indigo-50' : ''}"><td class="p-1 border border-gray-300 text-center">${idx+1}</td><td class="p-1 border border-gray-300">${s.name}</td><td class="p-1 border border-gray-300 text-center ${color}">${sStatus}${outQtyText}</td></tr>`;
+                                    }).join('');
+                                    stepsHtml = `<table class="w-full text-xs text-left border-collapse border border-gray-300 mt-1"><thead><tr class="bg-gray-100"><th class="p-1 border border-gray-300 w-10 text-center">順序</th><th class="p-1 border border-gray-300">工序</th><th class="p-1 border border-gray-300 w-20 text-center">狀態</th></tr></thead><tbody>${sRows}</tbody></table>`;
+                                }
+                            } catch(e){}
+                            
+                            detailsHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-white p-3 rounded border"><strong class="text-moSide text-xs block mb-1">📦 訂單總用料</strong>${matHtml}</div><div class="bg-white p-3 rounded border"><strong class="text-moSide text-xs block mb-1">🏭 工序進度與產出</strong>${stepsHtml}</div></div>`;
+
+                            if (status === '生產中') { btnSlot1 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 font-bold">🔧 報修</button>`; btnSlot2 = `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold">🛑 停工</button>`; btnSlot3 = `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-blue-600 text-white py-1 rounded font-bold shadow-sm">🏁 完成工序</button>`; } 
+                            else if (status === '已完工') { btnSlot4 = `<button onclick="openShippingModal('${woId}', '${oId}')" class="w-20 bg-emerald-600 text-white py-1 rounded font-bold animate-pulse shadow">🚚 出貨</button>`; } 
+                            else if (status === '已出貨待OMS結案') { btnSlot4 = `<button onclick="printDeliveryNote(this, '${oId}')" class="w-20 bg-blue-600 text-white py-1 rounded font-bold shadow animate-pulse">📄 印出貨單</button>`; }
                         }
                         else if (currentSysName === 'EQS') {
                             const status = row['當前狀態']; const mac = row['設備編號'];
@@ -2148,9 +2187,9 @@
             currentHeaders.forEach(header => {
                 if (isSysAuth && (header === '可視系統' || header === '可編輯系統' || header === '可操作系統')) return; 
 
-                // 【修正核心】隱藏不需要在新增時看到的欄位 (包含「預估良率」)
+                // 【需求 2】隱藏 OMS 新增時不需要看到的欄位
                 if (currentSysName === 'OMS' && rowIndex === -1) {
-                    const hideOnAdd = ['單價', '數量', '訂購數量', '總金額', '運費報價', '運費備註', '運費成本', '預估成本', '產出量', '配料明細', '預估良率'];
+                    const hideOnAdd = ['單價', '數量', '訂購數量', '總金額', '運費報價', '運費備註', '運費成本', '預估成本', '產出量', '配料明細', '預估良率', '工序規劃紀錄', '示意圖', '貨運單號', '出貨時間'];
                     if (hideOnAdd.includes(header)) return;
                 }
                 if (header === '配料明細') return; 
@@ -2395,14 +2434,27 @@
             btn.innerHTML = isHidden ? '🙈 隱藏金額' : '👁️ 顯示金額';
         }
         
-      // ================= 出貨單 (Req 11) =================
+      // ================= 出貨單與條碼產生系統 (精緻商務版，修復 undefined 讀取報錯) =================
         function printDeliveryNote(btn, orderId) {
             const originalText = btn.innerHTML; btn.innerHTML = '<span class="btn-spinner"></span>讀取中'; btn.disabled = true;
+            
+            // 嘗試從本地或快取撈取訂單，若找不到則主動向後端請求 OMS 資料
             let orderRow = currentTableData.find(r => r['訂單編號'] === orderId) || (systemCache['訂單管理']?.data || []).find(o => o['訂單編號'] === orderId);
             
+            if (!orderRow) {
+                google.script.run.withSuccessHandler(res => {
+                    let fetchedRow = res.data.find(o => o['訂單編號'] === orderId);
+                    if(!fetchedRow) { alert('找不到關聯的訂單資料！'); btn.innerHTML = originalText; btn.disabled = false; return; }
+                    proceedPrintDelivery(btn, originalText, orderId, fetchedRow);
+                }).withFailureHandler(err => { alert(err); btn.innerHTML = originalText; btn.disabled = false; }).getSheetData('訂單管理');
+            } else {
+                proceedPrintDelivery(btn, originalText, orderId, orderRow);
+            }
+        }
+
+        function proceedPrintDelivery(btn, originalText, orderId, orderRow) {
             google.script.run.withSuccessHandler(res => {
                 let customers = res.data || [];
-                // 【需求 11】硬核鎖定出貨方為 C00000001
                 let ourInfo = customers.find(c => c['客戶代號'] === 'C00000001' || c['客戶編號'] === 'C00000001') || {};
                 let custInfo = customers.find(c => c['客戶名稱'] === orderRow['客戶名稱']) || {};
                 
@@ -3008,7 +3060,7 @@
             addPlanRow(); document.getElementById('planModal').classList.remove('hidden');
         }
 
-        // ================= 【需求 4, 9】工序規劃：起訖時間與用料提示 =================
+        // ================= 【需求 4】工序規劃：起訖時間以下拉 06:30 ~ 20:30 每半小時間隔 =================
         function addPlanRow() {
             let container = document.getElementById('planStepsContainer');
             let idx = container.querySelectorAll('.plan-row').length + 1;
@@ -3025,6 +3077,17 @@
                 return `<label class="flex items-center gap-1"><input type="checkbox" value="${n} (${m.qty})" class="step-mat-cb w-4 h-4 text-indigo-600"> <span class="text-gray-700">${n} (量: ${m.qty})</span></label>`;
             }).join('');
             if(!matOpts) matOpts = '<span class="text-red-400">估算階段無配料，不需提示。</span>';
+
+            // 產生 06:30 ~ 20:30 的時間選項
+            let timeOpts = '';
+            for(let h=6; h<=20; h++) {
+                let hh = String(h).padStart(2,'0');
+                if(h===6) { timeOpts += `<option value="06:30">06:30</option>`; }
+                else if(h===20) { timeOpts += `<option value="20:00">20:00</option><option value="20:30">20:30</option>`; }
+                else { timeOpts += `<option value="${hh}:00">${hh}:00</option><option value="${hh}:30">${hh}:30</option>`; }
+            }
+
+            let today = new Date(new Date().getTime() + 8*60*60*1000).toISOString().split('T')[0];
 
             let div = document.createElement('div'); div.className = 'plan-row border border-indigo-200 bg-white p-4 rounded-lg flex flex-col gap-3 relative shadow-sm';
             div.innerHTML = `
@@ -3047,11 +3110,17 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[10px] text-moSide font-bold mb-1">📅 預計開始時間</label>
-                        <input type="datetime-local" class="step-start-date w-full p-2 border border-gray-300 rounded text-sm text-gray-700 focus:ring-1 focus:ring-indigo-500">
+                        <div class="flex gap-1">
+                            <input type="date" class="step-start-date w-2/3 p-2 border border-gray-300 rounded text-sm text-gray-700" value="${today}">
+                            <select class="step-start-time w-1/3 p-2 border border-gray-300 rounded text-sm text-gray-700">${timeOpts}</select>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-[10px] text-moSide font-bold mb-1">📅 預計完成時間</label>
-                        <input type="datetime-local" class="step-end-date w-full p-2 border border-gray-300 rounded text-sm text-gray-700 focus:ring-1 focus:ring-indigo-500">
+                        <div class="flex gap-1">
+                            <input type="date" class="step-end-date w-2/3 p-2 border border-gray-300 rounded text-sm text-gray-700" value="${today}">
+                            <select class="step-end-time w-1/3 p-2 border border-gray-300 rounded text-sm text-gray-700">${timeOpts}</select>
+                        </div>
                     </div>
                 </div>
 
@@ -3070,9 +3139,9 @@
                 let macInput = rows[i].querySelector('.step-mac').value.trim(); let macId = macInput.split(' ')[0];
                 let name = macInput.split('|').length > 1 ? macInput.split('|')[1].trim() : macId;
                 let emp = rows[i].querySelector('.step-emp').value.trim();
-                let startDate = rows[i].querySelector('.step-start-date').value;
-                let endDate = rows[i].querySelector('.step-end-date').value;
-                if(!macId || !emp || !startDate || !endDate) return alert(`請完整填寫第 ${i+1} 步驟的機台、人員與起訖時間！`);
+                let startDate = rows[i].querySelector('.step-start-date').value + " " + rows[i].querySelector('.step-start-time').value;
+                let endDate = rows[i].querySelector('.step-end-date').value + " " + rows[i].querySelector('.step-end-time').value;
+                if(!macId || !emp || !rows[i].querySelector('.step-start-date').value || !rows[i].querySelector('.step-end-date').value) return alert(`請完整填寫第 ${i+1} 步驟的機台、人員與起訖日期！`);
                 
                 let mats = Array.from(rows[i].querySelectorAll('.step-mat-cb:checked')).map(cb => cb.value);
                 planSteps.push({ seq: i+1, name: name, mac: macId, emp: emp, startDate: startDate, endDate: endDate, requiredMats: mats });
