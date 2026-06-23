@@ -392,17 +392,18 @@
             });
         }
 
-        // ================= 【修正】支援 % 號多重模糊搜尋 =================
+        // ================= 【修正】支援 % 號多重模糊搜尋 (修復料號重複出現) =================
         function filterMatOptions(inputEl, listId) {
             let q = inputEl.value.toLowerCase();
             let keywords = q.split('%').map(k => k.trim()).filter(k=>k);
             let dl = document.getElementById(listId);
             let html = ''; let count = 0;
             (currentDropdowns['物料編號'] || []).forEach(m => {
-                let text = (m.id + ' ' + m.name).toLowerCase();
+                let text = m.name.toLowerCase(); 
                 let match = keywords.length === 0 ? true : keywords.every(k => text.includes(k));
                 if(match && count < 50) { 
-                    html += `<option value="${m.id} - ${m.name}" data-price="${m.price}" data-sell="${m.sellPrice}"></option>`; 
+                    // 後端傳來的 name 已經包含 ID，所以直接填入 name 即可，避免雙重複
+                    html += `<option value="${m.name}" data-price="${m.price}" data-sell="${m.sellPrice}"></option>`; 
                     count++; 
                 }
             });
@@ -789,10 +790,15 @@
                     fields.forEach(f => { detailsHTML += `<div><span class="text-gray-400 block text-[11px]">${f}</span><span class="font-bold text-gray-800">${row[f]||'無'}</span></div>`; });
                     detailsHTML += `</div>`;
                     
+                    // 【需求 5】補回印 PDF 按鈕
                     let mReplenish = currentReplenish.filter(r => r.matId === mId && r.status !== '已結案');
                     let replHtml = mReplenish.map(r => {
                         let formattedTime = r.time.replace('T', ' ').substring(0, 19);
-                        return `<tr><td class="p-1 border">${formattedTime}</td><td class="p-1 border font-mono">${r.repId}</td><td class="p-1 border text-orange-600 font-bold">${r.reqQty}</td><td class="p-1 border text-blue-600 font-bold">${r.inQty}</td><td class="p-1 border text-center w-16"><button onclick="openRestockFromRepl('${r.repId}', '${r.matId}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}', ${r.reqQty - r.inQty})" class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] hover:bg-blue-700 transition-colors shadow-sm">📦 進貨</button></td></tr>`;
+                        return `<tr><td class="p-1 border">${formattedTime}</td><td class="p-1 border font-mono">${r.repId}</td><td class="p-1 border text-orange-600 font-bold">${r.reqQty}</td><td class="p-1 border text-blue-600 font-bold">${r.inQty}</td>
+                        <td class="p-1 border text-center w-28">
+                            <button onclick="generateReplenishPDF('${r.repId}', '${r.reqQty}', '${r.matId}', '${r.supplier}', '${r.reason||''}')" class="bg-gray-600 text-white px-2 py-0.5 rounded text-[10px] hover:bg-gray-700 shadow-sm mr-1">🖨️ 印</button>
+                            <button onclick="openRestockFromRepl('${r.repId}', '${r.matId}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}', ${r.reqQty - r.inQty})" class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] hover:bg-blue-700 shadow-sm">📦 進</button>
+                        </td></tr>`;
                     }).join('');
                     
                     if(replHtml) {
@@ -803,9 +809,10 @@
                         </table></div>`;
                     }
 
+                    // 【需求 1】進貨紀錄增加進貨總金額
                     let mRestocks = currentRestocks.filter(r => r.matId === mId).slice(0, 10);
-                    let rsHtml = mRestocks.map(r => `<tr><td class="p-1 border">${r.time.replace('T', ' ').substring(0, 19)}</td><td class="p-1 border text-blue-600 font-bold">${r.qty}</td><td class="p-1 border">${r.supplier}</td><td class="p-1 border">${r.vendorShipId||'-'}</td></tr>`).join('');
-                    if(!rsHtml) rsHtml = `<tr><td colspan="4" class="p-1 border text-center text-gray-400">尚無進貨紀錄</td></tr>`;
+                    let rsHtml = mRestocks.map(r => `<tr><td class="p-1 border">${r.time.replace('T', ' ').substring(0, 19)}</td><td class="p-1 border text-blue-600 font-bold">${r.qty}</td><td class="p-1 border text-green-600 font-bold">$${parseFloat(r.amount||0).toLocaleString()}</td><td class="p-1 border">${r.supplier}</td><td class="p-1 border">${r.vendorShipId||'-'}</td></tr>`).join('');
+                    if(!rsHtml) rsHtml = `<tr><td colspan="5" class="p-1 border text-center text-gray-400">尚無進貨紀錄</td></tr>`;
                     
                     let mDeducts = currentDeductLogs.filter(d => d.matId === mId).slice(0, 10);
                     let ddHtml = mDeducts.map(d => `<tr><td class="p-1 border">${d.orderId}</td><td class="p-1 border text-red-600 font-bold">${d.qty}</td></tr>`).join('');
@@ -818,7 +825,7 @@
                                 <button onclick="openAnomalyModal('${row['物料編號']}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}')" class="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-red-600 transition-colors shadow-sm">⚠️ 登錄供貨異常</button>
                             </div>
                             <table class="w-full text-[11px] bg-white border border-collapse text-left">
-                                <thead class="bg-gray-100"><tr><th class="p-1 border">時間</th><th class="p-1 border">數量</th><th class="p-1 border">供應商</th><th class="p-1 border">出貨單號</th></tr></thead>
+                                <thead class="bg-gray-100"><tr><th class="p-1 border">時間</th><th class="p-1 border">數量</th><th class="p-1 border">金額</th><th class="p-1 border">供應商</th><th class="p-1 border">出貨單號</th></tr></thead>
                                 <tbody>${rsHtml}</tbody>
                             </table>
                         </div>
@@ -832,13 +839,11 @@
                     </div></div>`;
                 }
 
-                    // 【需求 9】SUP 展開面板：瀏覽近20筆進貨紀錄與異常通報追溯
-                    // 【需求 3 & 9】SUP 展開面板：進貨紀錄與歷史供貨異常紀錄
-                // 【需求 1】SUP 展開面板：下收欄位與進貨異常紀錄
+                // 【需求 7 修復】SUP 面板過濾字串對齊
                 if (currentSysName === 'SUP') {
                     let sName = row['供應商名稱'] || '';
-                    let matchedRestocks = currentRestocks.filter(r => r.supplier === supplierNameClean(sName)).slice(0, 20);
-                    let matchedAnomalies = typeof currentAnomalies !== 'undefined' ? currentAnomalies.filter(a => a.supplier === supplierNameClean(sName)) : [];
+                    let matchedRestocks = currentRestocks.filter(r => String(r.supplier).trim() === String(sName).trim()).slice(0, 20);
+                    let matchedAnomalies = typeof currentAnomalies !== 'undefined' ? currentAnomalies.filter(a => String(a.supplier).trim() === String(sName).trim()) : [];
 
                     detailsHTML += `<div class="bg-gray-50 p-4 rounded-lg border text-xs mb-2 space-y-4">`;
                     
@@ -846,9 +851,9 @@
                     supHideHeaders.forEach(k => { detailsHTML += `<div><span class="text-gray-400 block">${k}</span><span class="font-bold text-gray-800">${row[k]||'未註記'}</span></div>`; });
                     detailsHTML += `</div>`;
                     
-                    detailsHTML += `<div><span class="font-bold text-moSide block mb-1">🚚 近 20 筆實體進貨履歷清單</span><table class="w-full text-[11px] bg-white border border-collapse text-left mb-1"><thead><tr class="bg-gray-100"><th class="p-1 border">時間</th><th class="p-1 border">物料編號</th><th class="p-1 border">數量</th><th class="p-1 border">廠商出貨單</th></tr></thead><tbody>`;
-                    matchedRestocks.forEach(mr => { detailsHTML += `<tr><td class="p-1 border">${mr.time}</td><td class="p-1 border">${mr.matId}</td><td class="p-1 border text-blue-600 font-bold">${mr.qty}</td><td class="p-1 border">${mr.vendorShipId||'-'}</td></tr>`; });
-                    if(matchedRestocks.length===0) detailsHTML += `<tr><td colspan="4" class="p-1 border text-center text-gray-400">目前尚無進貨紀錄</td></tr>`;
+                    detailsHTML += `<div><span class="font-bold text-moSide block mb-1">🚚 近 20 筆實體進貨履歷清單</span><table class="w-full text-[11px] bg-white border border-collapse text-left mb-1"><thead><tr class="bg-gray-100"><th class="p-1 border">時間</th><th class="p-1 border">物料編號</th><th class="p-1 border">數量</th><th class="p-1 border">金額</th><th class="p-1 border">廠商出貨單</th></tr></thead><tbody>`;
+                    matchedRestocks.forEach(mr => { detailsHTML += `<tr><td class="p-1 border">${mr.time.replace('T', ' ').substring(0, 19)}</td><td class="p-1 border">${mr.matId}</td><td class="p-1 border text-blue-600 font-bold">${mr.qty}</td><td class="p-1 border text-green-600 font-bold">$${parseFloat(mr.amount||0).toLocaleString()}</td><td class="p-1 border">${mr.vendorShipId||'-'}</td></tr>`; });
+                    if(matchedRestocks.length===0) detailsHTML += `<tr><td colspan="5" class="p-1 border text-center text-gray-400">目前尚無進貨紀錄</td></tr>`;
                     detailsHTML += `</tbody></table></div>`;
 
                     if(matchedAnomalies.length > 0) {
@@ -858,7 +863,6 @@
                     } else {
                         detailsHTML += `<p class="text-green-600 font-bold bg-green-50 p-2 rounded border border-green-200">✅ 該供應商目前無任何供貨異常紀錄</p>`;
                     }
-
                     detailsHTML += `<button onclick="exportSupplierHistory('${sName}')" class="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm hover:bg-indigo-700 transition-colors">📥 匯出供貨商品全生命週期明細</button>`;
                     detailsHTML += `</div>`;
                 }
@@ -1328,77 +1332,68 @@
             document.getElementById('replenishModal').classList.remove('hidden');
         }
         function submitReplenish(btn) {
-            const matId = document.getElementById('replMatId').value;
-            const qty = document.getElementById('replQty').value;
-            const supplier = document.getElementById('replSupplier').value;
-            const reason = document.getElementById('replReason').value; 
+            const matId = document.getElementById('replMatId').value; const qty = document.getElementById('replQty').value;
+            const supplier = document.getElementById('replSupplier').value; const reason = document.getElementById('replReason').value; 
             const op = document.getElementById('userNameDisplay').innerText;
-            
             if(!qty || parseFloat(qty) <= 0) return alert("請輸入正確的申請數量！");
             if(!reason.trim()) return alert("請輸入補貨申請原因！"); 
 
-            let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === matId);
-            let price = matObj ? (parseFloat(matObj.price) || 0) : 0;
+            let matObj = (currentDropdowns['物料編號'] || []).find(m => m.id === matId); let price = matObj ? (parseFloat(matObj.price) || 0) : 0;
             let estCost = price * parseFloat(qty);
-
-            if(!confirm(`【請再次確認補貨內容】\n物料編號：${matId}\n申請數量：${qty}\n預估成本：$ ${estCost.toLocaleString()} (${price} * ${qty})\n申請原因：${reason}\n\n確定要送出並下載 PDF 嗎？`)) return;
+            if(!confirm(`【請確認補貨申請】\n物料編號：${matId}\n預估成本：$ ${estCost.toLocaleString()}\n申請原因：${reason}\n確定送出嗎？`)) return;
 
             document.querySelectorAll('#replenishModal input').forEach(el => el.disabled = true);
             btn.innerHTML = '<span class="btn-spinner"></span>處理中'; btn.disabled = true;
             
             google.script.run.withSuccessHandler(res => {
+                // 【需求 5】不再主動產生 PDF
+                alert('補貨申請已送出！您可於待處理清單中點擊列印單據。');
                 document.querySelectorAll('#replenishModal input').forEach(el => el.disabled = false);
-                generateReplenishPDF(res.repId, qty, matId, supplier, reason);
-                closeModal('replenishModal'); 
-                refreshSystem(); 
-                btn.innerHTML = '產生單號並下載 PDF'; btn.disabled = false;
+                closeModal('replenishModal'); refreshSystem(); 
+                btn.innerHTML = '確認送出申請單'; btn.disabled = false;
             }).withFailureHandler(err => { 
                 document.querySelectorAll('#replenishModal input').forEach(el => el.disabled = false);
-                alert('系統異常：' + err); 
-                btn.innerHTML = '產生單號並下載 PDF'; btn.disabled = false; 
+                alert('系統異常：' + err); btn.innerHTML = '確認送出申請單'; btn.disabled = false; 
             }).addReplenish(matId, qty, supplier, op, reason); 
         }
 
         function openRestockFromRepl(repId, matId, pNameEncoded, supplier, maxQty) {
+            // 【需求 3】開啟前強制重置按鈕狀態
+            let btn = document.querySelector('#restockModal button.bg-blue-600');
+            if(btn) { btn.innerHTML = '確認進貨並結算均價'; btn.disabled = false; }
+            document.querySelectorAll('#restockModal input').forEach(el => el.disabled = false);
+            
             document.getElementById('rsMatId').value = matId; document.getElementById('rsMatName').innerText = matId + " (" + decodeURIComponent(pNameEncoded) + ")";
-            document.getElementById('rsSupplier').value = supplier || '';
-            let supHtml = (currentDropdowns['供應商'] || []).map(s => `<option value="${s}"></option>`).join('');
-            document.getElementById('dl_supplier').innerHTML = supHtml;
+            document.getElementById('rsSupplier').value = supplier || ''; document.getElementById('dl_supplier').innerHTML = (currentDropdowns['供應商'] || []).map(s => `<option value="${s}"></option>`).join('');
             document.getElementById('rsOrderId').value = repId; document.getElementById('rsVendorShipId').value = '';
-            document.getElementById('rsQty').value = maxQty; document.getElementById('rsQty').setAttribute('data-max', maxQty);
-            document.getElementById('rsMaxLabel').innerText = `(上限: ${maxQty})`; document.getElementById('restockModal').classList.remove('hidden');
+            document.getElementById('rsQty').value = maxQty; document.getElementById('rsAmount').value = '';
+            document.getElementById('rsQty').setAttribute('data-max', maxQty); document.getElementById('rsMaxLabel').innerText = `(上限: ${maxQty})`; 
+            document.getElementById('restockModal').classList.remove('hidden');
         }
-        // ================= 修復與升級：進貨數量 0 自動結案 =================
+        
         function submitRestock(btn) {
             const matId = document.getElementById('rsMatId').value; const orderId = document.getElementById('rsOrderId').value; 
             const vendorShipId = document.getElementById('rsVendorShipId').value; const qty = document.getElementById('rsQty').value; 
+            const amount = document.getElementById('rsAmount').value; 
             const supplier = document.getElementById('rsSupplier').value; const op = document.getElementById('userNameDisplay').innerText;
             
             if(!vendorShipId) return alert("請輸入廠商出貨單號！"); 
             if(!qty && qty !== "0") return alert("請輸入數量");
             
             const qtyNum = parseFloat(qty);
-            const maxQty = document.getElementById('rsQty').getAttribute('data-max');
-            
-            // 判斷是否為「放棄進貨/報廢單」
-            if(qtyNum === 0) {
-                if(!confirm("【確定此單不進貨?】\n確認後此補貨單將被強制結案，\n後續要補貨需重新走申請流程！")) return;
-            } else {
-                if(maxQty && qtyNum > parseFloat(maxQty)) return alert(`進貨數量不可大於申請上限 (${maxQty})！`);
-                if(!confirm("【二次確認】\n請確認進貨單號、數量與供應商無誤？\n寫入後將更新庫存與紀錄。")) return;
-            }
-            
+            if(qtyNum > 0 && !amount) return alert("請輸入該批進貨總金額以利精算平均單價！");
+
             document.querySelectorAll('#restockModal input').forEach(el => el.disabled = true);
             btn.innerHTML = '<span class="btn-spinner"></span>處理中'; btn.disabled = true;
             
             google.script.run.withSuccessHandler(res => { 
                 document.querySelectorAll('#restockModal input').forEach(el => el.disabled = false);
-                if(!res.success) { alert(res.msg); btn.innerHTML = '確認進貨'; btn.disabled = false; }
-                else { closeModal('restockModal'); refreshSystem(); btn.innerHTML = '確認進貨'; btn.disabled = false; }
-            }).withFailureHandler(err => { 
+                if(!res.success) { alert(res.msg); btn.innerHTML = '確認進貨並結算均價'; btn.disabled = false; }
+                else { alert(res.msg); closeModal('restockModal'); refreshSystem(); }
+            }).withFailureHandler(err => {
                 document.querySelectorAll('#restockModal input').forEach(el => el.disabled = false);
-                alert('系統異常：'+err); btn.innerHTML = '確認進貨'; btn.disabled = false; 
-            }).addRestock(matId, qtyNum, supplier, orderId, vendorShipId, op);
+                alert('系統異常：'+err); btn.innerHTML = '確認進貨並結算均價'; btn.disabled = false;
+            }).addRestock(matId, qtyNum, amount, supplier, orderId, vendorShipId, op);
         }
         function openHandoverModal() {
             document.getElementById('hoContent').value = ''; document.getElementById('hoImage').value = ''; document.getElementById('hoImagePreview').classList.add('hidden');
