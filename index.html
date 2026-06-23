@@ -946,11 +946,33 @@
                     if (hasOpAuth) {
                         if (currentSysName === 'OMS') {
                             const status = row['訂單狀態']; const oId = row['訂單編號'];
-                            btnSlot1 = `<button onclick="cloneOrder(${index})" class="w-20 bg-gray-800 text-white py-1 rounded hover:bg-black font-bold">📋 複製</button>`;
-                            if (userShowFinance && status !== '估算中') { btnSlot2 = `<button onclick="printQuotation(${index})" class="w-20 bg-blue-500 text-white py-1 rounded font-bold">📄 估價單</button>`; btnSlot3 = `<button onclick="printMarginReport(${index})" class="w-20 bg-purple-600 text-white py-1 rounded font-bold">📈 毛利</button>`; }
+                            btnSlot1 = `<button onclick="cloneOrder(${index})" class="w-20 bg-gray-800 text-white py-1 rounded hover:bg-black font-bold shadow-sm">📋 複製</button>`;
+                            if (userShowFinance && status !== '估算中' && status !== '待規劃') { 
+                                btnSlot2 = `<button onclick="printQuotation(${index})" class="w-20 bg-blue-500 text-white py-1 rounded font-bold shadow">📄 估價單</button>`; 
+                            }
                             if (status === '估算中') { btnSlot4 = `<button onclick="openMatModal('${oId}', 'estimate')" class="w-20 bg-indigo-500 text-white py-1 rounded font-bold shadow animate-pulse">📐 配料估價</button>`; } 
-                            else if (status === '待扣料' || status === '原料不足') { btnSlot4 = `<div class="flex gap-1 w-32"><button onclick="openMatModal('${oId}', 'estimate')" class="flex-1 bg-gray-500 text-white py-1 rounded font-bold">再次估價</button><button onclick="openMatModal('${oId}', 'normal')" class="flex-1 bg-yellow-500 text-white py-1 rounded font-bold shadow">📦 扣料</button></div>`; } 
-                            else if (status === '待排程') { btnSlot3 = `<button onclick="revertOmsDeduction('${oId}')" class="w-20 bg-red-400 text-white py-1 rounded font-bold shadow">🔙 退料</button>`; btnSlot4 = `<button onclick="openWoModal('${oId}', '${encodeURIComponent(row['產品名稱']||'')}')" class="w-20 bg-green-600 text-white py-1 rounded font-bold">📅 排程派工</button>`; }
+                            else if (status === '待規劃') { btnSlot4 = `<button onclick="openPlanModal('${oId}')" class="w-20 bg-purple-600 text-white py-1 rounded font-bold shadow animate-pulse">📋 工序規劃</button>`; }
+                            else if (status === '待扣料') { btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold shadow animate-pulse">📦 執行扣料</button>`; } 
+                            else if (status === '原料不足') { 
+                                btnSlot3 = `<button onclick="openReplenishModal('', '', '')" class="w-20 bg-red-100 text-red-700 border border-red-300 py-1 rounded font-bold shadow">🛒 補貨</button>`;
+                                btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold shadow animate-pulse">📦 再次扣料</button>`; 
+                            }
+                            else if (status === '待扣料' || status === '原料不足') { 
+                                btnSlot4 = `<div class="flex gap-1 w-32"><button onclick="openMatModal('${oId}', 'estimate')" class="flex-1 bg-gray-500 text-white py-1 rounded font-bold">再次估價</button><button onclick="openMatModal('${oId}', 'normal')" class="flex-1 bg-yellow-500 text-white py-1 rounded font-bold shadow">📦 扣料</button></div>`; 
+                            } 
+                            else if (status === '待排程') { 
+                                btnSlot2 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
+                                btnSlot3 = `<button onclick="revertOmsDeduction('${oId}')" class="w-20 bg-red-400 text-white py-1 rounded font-bold shadow">🔙 退料</button>`; 
+                                btnSlot4 = `<button onclick="openWoModal('${oId}', '${encodeURIComponent(row['產品名稱']||'')}')" class="w-20 bg-green-600 text-white py-1 rounded font-bold shadow">📅 排程派工</button>`; 
+                            }
+                            else if (status === '生產中') {
+                                btnSlot3 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
+                                btnSlot4 = `<button onclick="openMatModal('${oId}', 'addon')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold shadow">➕ 追加耗損</button>`;
+                            }
+                            else if (status === '製作完成' || status === '已出貨' || status === '已結案') { 
+                                btnSlot3 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
+                                btnSlot4 = `<button onclick="printDeliveryNote(this, '${oId}')" class="w-20 bg-blue-600 text-white py-1 rounded hover:bg-blue-700 font-bold shadow animate-pulse">📄 印出貨單</button>`; 
+                            }
                         }
                         else if (currentSysName === 'MES') {
                             const status = row['工單狀態']; const mac = row['作業機台']; const woId = row['工單編號']; const oId = row['關聯訂單'];
@@ -966,10 +988,12 @@
                             if (status === '報修中' || status === '掛修') btnSlot2 = `<button onclick="finishRepair('${mac}', this)" class="w-20 bg-green-600 text-white py-1 rounded font-bold">🛠️ 完修</button>`;
                             else if (status === '生產中' || status === '待機中') { btnSlot2 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded font-bold">🔧 報修</button>`; btnSlot3 = `<button onclick="openMaintModal('${mac}')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold">💆 保養</button>`; }
                         }
-                        else if (currentSysName === 'ERP') { btnSlot1 = `<button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}')" class="w-24 bg-yellow-400 text-yellow-900 py-1 rounded hover:bg-yellow-500 font-bold shadow-sm">🛒 補貨申請</button>`; }
+                        else if (currentSysName === 'ERP') { 
+                            btnSlot1 = `<button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}')" class="w-24 bg-yellow-400 text-yellow-900 py-1 rounded hover:bg-yellow-500 font-bold shadow-sm">🛒 補貨申請</button>`; 
+                        }
                     }
                     tableHTML += `${btnSlot1}${btnSlot2}${btnSlot3}${btnSlot4}`;
-                    if (hasEditAuth && currentSysName !== 'EQS' && currentSysName !== 'ERP' && currentSysName !== 'CRM' && currentSysName !== 'SUP') { tableHTML += `<button onclick="openModal(${index})" class="w-20 border border-moSide text-moSide py-1 rounded font-bold ml-auto">📝 編輯</button>`; }
+                    if (hasEditAuth) { tableHTML += `<button onclick="openModal(${index})" class="w-20 border border-moSide text-moSide py-1 rounded font-bold ml-auto bg-white hover:bg-gray-100 transition-colors">📝 編輯</button>`; }
                     tableHTML += `</div></td></tr>`;
 
                     // 【核心修正：絕對不能漏掉的明細 Tr 容器列，確保估料前後皆可點開！】
