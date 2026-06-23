@@ -947,10 +947,8 @@
                     }
 
                     const totalColSpan = displayHeaders.length + 1;
+                    // 1. 建立按鈕專屬列 (無嵌套錯誤的 DIV)
                     tableHTML += `<tr id="btn_row_${index}" class="hidden bg-gray-50 border-b border-gray-200"><td colspan="${totalColSpan}" class="p-2 pl-12"><div class="flex flex-wrap items-center gap-4 text-xs">`;
-                    
-                    // 【需求 15 修復】全域查看小卡顏色加深辨識度
-                    if (detailsHTML !== '') tableHTML += `<tr id="detail_${index}" class="hidden bg-indigo-50/60"><td colspan="${totalColSpan}" class="p-5 text-sm border-l-4 border-indigo-400 shadow-inner">${detailsHTML}</td></tr>`;
 
                     let btnSlot1 = `<div class="w-20 text-gray-300">─</div>`; let btnSlot2 = `<div class="w-20 text-gray-300">─</div>`; let btnSlot3 = `<div class="w-20 text-gray-300">─</div>`; let btnSlot4 = `<div class="w-20 text-gray-300">─</div>`;
                     if (hasOpAuth) {
@@ -958,7 +956,7 @@
                             const status = row['訂單狀態']; const oId = row['訂單編號'];
                             btnSlot1 = `<button onclick="cloneOrder(${index})" class="w-20 bg-gray-800 text-white py-1 rounded hover:bg-black font-bold shadow-sm">📋 複製</button>`;
                             
-                            // 【需求 1, 2】按鈕狀態機升級
+                            // 按鈕狀態機
                             if (status === '估算中') { btnSlot4 = `<button onclick="openMatModal('${oId}', 'estimate')" class="w-20 bg-indigo-500 text-white py-1 rounded font-bold shadow animate-pulse">📐 配料估價</button>`; } 
                             else if (status === '待規劃') { btnSlot4 = `<button onclick="openPlanModal('${oId}')" class="w-20 bg-purple-600 text-white py-1 rounded font-bold shadow animate-pulse">📋 工序規劃</button>`; }
                             else if (status === '待扣料') { btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold shadow animate-pulse">📦 執行扣料</button>`; } 
@@ -986,7 +984,6 @@
                         }
                         else if (currentSysName === 'MES') {
                             const status = row['工單狀態']; const mac = row['作業機台']; const woId = row['工單編號']; const oId = row['關聯訂單'];
-                            // 【功能 3 修正】MES 控制列按鈕字詞更新為「完成工序」
                             if (status === '生產中') { btnSlot1 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded hover:bg-red-600 font-bold">🔧 報修</button>`; btnSlot2 = `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold">🛑 停工</button>`; btnSlot3 = `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-blue-600 text-white py-1 rounded font-bold shadow-sm">🏁 完成工序</button>`; } 
                             else if (status === '已完工') { btnSlot4 = `<button onclick="openShippingModal('${woId}', '${oId}')" class="w-20 bg-emerald-600 text-white py-1 rounded font-bold animate-pulse shadow">🚚 出貨</button>`; } 
                             else if (status === '已出貨') { btnSlot4 = `<span class="text-gray-400 font-bold w-20 text-center">已出貨結案</span>`; }
@@ -1001,15 +998,11 @@
                         else if (currentSysName === 'ERP') { btnSlot1 = `<button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}')" class="w-24 bg-yellow-400 text-yellow-900 py-1 rounded hover:bg-yellow-500 font-bold shadow-sm">🛒 補貨申請</button>`; }
                     }
                     tableHTML += `${btnSlot1}${btnSlot2}${btnSlot3}${btnSlot4}`;
-                    // 【需求 12 修復】編輯按鈕邏輯放寬
                     if (hasEditAuth) { tableHTML += `<button onclick="openModal(${index})" class="w-20 border border-moSide text-moSide py-1 rounded font-bold ml-auto bg-white hover:bg-gray-100 transition-colors">📝 編輯</button>`; }
                     tableHTML += `</div></td></tr>`;
 
-                    // 【核心修正：絕對不能漏掉的明細 Tr 容器列，確保估料前後皆可點開！】
-                    if (detailsHTML !== '') tableHTML += `<tr id="detail_${index}" class="hidden bg-gray-50"><td colspan="${totalColSpan}" class="p-5 text-sm border-l-4 border-moSide shadow-inner">${detailsHTML}</td></tr>`;
-                });
-            }
-            tableHTML += `</tbody></table></div>`;
+                    // 2. 建立專屬收合面板列 (確保在 DIV 和 TD 外面，獨立成一個合法的 TR)
+                    if (detailsHTML !== '') tableHTML += `<tr id="detail_${index}" class="hidden bg-indigo-50/60"><td colspan="${totalColSpan}" class="p-5 text-sm border-l-4 border-indigo-400 shadow-inner">${detailsHTML}</td></tr>`;
             
             // ================= 【完美復原】ERP 頂級智慧財務看板與快篩按鈕群 =================
             if (currentSysName === 'ERP') {
