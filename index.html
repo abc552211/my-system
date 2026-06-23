@@ -972,7 +972,6 @@
                     const totalColSpan = displayHeaders.length + 1;
                     tableHTML += `<tr id="btn_row_${index}" class="hidden bg-gray-50 border-b border-gray-200"><td colspan="${totalColSpan}" class="p-2 pl-12"><div class="flex flex-wrap items-center gap-4 text-xs">`;
                     
-                    // 【強固修正核心】點擊展開事件精準對齊，不再漏掉明細 Tr 列
                     if (detailsHTML !== '') { 
                         tableHTML += `<button id="btn_detail_${index}" onclick="toggleDetails('detail_${index}')" class="w-20 bg-gray-200 border border-gray-300 text-gray-700 py-1 rounded font-bold hover:bg-gray-300 transition-colors">查看 ▼</button>`; 
                     }
@@ -986,120 +985,50 @@
                         if (currentSysName === 'OMS') {
                             const status = row['訂單狀態']; const oId = row['訂單編號'];
                             btnSlot1 = `<button onclick="cloneOrder(${index})" class="w-20 bg-gray-800 text-white py-1 rounded hover:bg-black font-bold shadow-sm">📋 複製</button>`;
-                            if (userShowFinance && status !== '估算中' && status !== '待規劃') { 
-                                btnSlot2 = `<button onclick="printQuotation(${index})" class="w-20 bg-blue-500 text-white py-1 rounded font-bold shadow">📄 估價單</button>`; 
+                            if (userShowFinance) {
+                                btnSlot3 = `<button onclick="printMarginReport(${index})" class="w-20 bg-purple-600 text-white py-1 rounded font-bold shadow">📈 毛利</button>`;
                             }
                             if (status === '估算中') { 
                                 btnSlot4 = `<button onclick="openMatModal('${oId}', 'estimate')" class="w-20 bg-indigo-500 text-white py-1 rounded font-bold shadow animate-pulse">📐 配料估價</button>`; 
-                            } 
-                           else if (status === '待規劃') { 
-                                // 【需求 5】規劃前可重估
-                                btnSlot3 = `<button onclick="openMatModal('${oId}', 'estimate')" class="w-20 bg-gray-500 text-white py-1 rounded font-bold shadow">重新估價</button>`;
+                            } else if (status === '待規劃') { 
+                                btnSlot2 = `<button onclick="openMatModal('${oId}', 'estimate')" class="w-20 bg-gray-500 text-white py-1 rounded font-bold shadow">重新估價</button>`;
                                 btnSlot4 = `<button onclick="openPlanModal('${oId}')" class="w-20 bg-purple-600 text-white py-1 rounded font-bold shadow animate-pulse">📋 工序規劃</button>`; 
-                            }
-                            else if (status === '待扣料') { 
+                            } else if (status === '待扣料') { 
+                                btnSlot2 = `<button onclick="openMatModal('${oId}', 'estimate')" class="w-20 bg-gray-500 text-white py-1 rounded font-bold shadow">重新估價</button>`;
                                 btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold shadow animate-pulse">📦 執行扣料</button>`; 
-                            } 
-                            else if (status === '原料不足') { 
-                                btnSlot3 = `<button onclick="openReplenishModal('', '', '')" class="w-20 bg-red-100 text-red-700 border border-red-300 py-1 rounded font-bold shadow">🛒 補貨</button>`;
+                            } else if (status === '原料不足') { 
+                                btnSlot2 = `<button onclick="openReplenishModal('', '', '')" class="w-20 bg-red-100 text-red-700 border border-red-300 py-1 rounded font-bold shadow">🛒 補貨</button>`;
                                 btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold shadow animate-pulse">📦 再次扣料</button>`; 
-                            }
-                            else if (status === '待扣料') { 
-                                // 【需求 5】規劃後也能重估
-                                btnSlot3 = `<button onclick="openMatModal('${oId}', 'estimate')" class="w-20 bg-gray-500 text-white py-1 rounded font-bold shadow">重新估價</button>`;
-                                btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold shadow animate-pulse">📦 執行扣料</button>`; 
-                            }
-                            else if (status === '原料不足') { 
-                                btnSlot3 = `<button onclick="openReplenishModal('', '', '')" class="w-20 bg-red-100 text-red-700 border border-red-300 py-1 rounded font-bold shadow">🛒 補貨</button>`;
-                                btnSlot4 = `<button onclick="openMatModal('${oId}', 'normal')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold shadow animate-pulse">📦 再次扣料</button>`; 
-                            }    
-                            else if (status === '待生產') { 
+                            } else if (status === '待生產') { 
                                 btnSlot2 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
-                                btnSlot3 = `<button onclick="revertOmsDeduction('${oId}')" class="w-20 bg-red-400 text-white py-1 rounded font-bold shadow">🔙 退料</button>`; 
-                                // 【需求 9】排程整合至規劃，扣料後直接啟動生產
                                 btnSlot4 = `<button onclick="startProduction('${oId}')" class="w-20 bg-green-600 text-white py-1 rounded font-bold shadow animate-pulse">🚀 開始生產</button>`; 
-                            }
-                            else if (status === '生產中') {
-                                btnSlot3 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
-                                btnSlot4 = `<button onclick="openMatModal('${oId}', 'addon')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold shadow">➕ 追加耗損</button>`;
-                            }
-                            else if (status === '製作完成') { 
-                                btnSlot3 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
-                                // 【需求 2】結案前可印出貨單
-                                btnSlot4 = `<button onclick="printDeliveryNote(this, '${oId}')" class="w-20 bg-blue-600 text-white py-1 rounded hover:bg-blue-700 font-bold shadow animate-pulse">📄 印出貨單</button>`; 
-                            }
-                            else if (status === '已出貨待OMS結案' || status === '已出貨') { 
+                            } else if (status === '生產中') {
                                 btnSlot2 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
-                                btnSlot3 = `<button onclick="printDeliveryNote(this, '${oId}')" class="w-20 bg-blue-600 text-white py-1 rounded font-bold shadow">📄 印出貨單</button>`; 
-                                // 【需求 12】結案操作鈕
+                                btnSlot4 = `<button onclick="openMatModal('${oId}', 'addon')" class="w-20 bg-orange-500 text-white py-1 rounded hover:bg-orange-600 font-bold shadow">➕ 追加耗損</button>`;
+                            } else if (status === '製作完成') { 
+                                btnSlot2 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
+                                btnSlot4 = `<button onclick="printDeliveryNote(this, '${oId}')" class="w-20 bg-blue-600 text-white py-1 rounded hover:bg-blue-700 font-bold shadow animate-pulse">📄 印出貨單</button>`; 
+                            } else if (status === '已出貨待OMS結案' || status === '已出貨') { 
+                                btnSlot2 = `<button onclick="generateWoPDF('${oId}')" class="w-20 bg-gray-600 text-white py-1 rounded font-bold shadow">🖨️ 印工單</button>`;
                                 btnSlot4 = `<button onclick="closeOrder('${oId}')" class="w-20 bg-red-700 text-white py-1 rounded font-bold shadow animate-pulse">🔒 結案</button>`;
                             }
-                            // 毛利按鈕優化：只要擁有財務檢視權限，不限單據狀態全面持續開放顯示
-                        if (userShowFinance) {
-                        if (btnSlot3.includes('─') || btnSlot3.includes('text-gray-300')) {
-                           btnSlot3 = `<button onclick="printMarginReport(${index})" class="w-20 bg-purple-600 text-white py-1 rounded font-bold shadow">📈 毛利</button>`;
+                        } else if (currentSysName === 'MES') {
+                            const status = row['工單狀態']; const mac = row['作業機台']; const woId = row['工單編號']; const oId = row['關聯訂單'];
+                            if (status === '生產中') {
+                                btnSlot1 = `<button onclick="openStopModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-red-600 text-white py-1 rounded font-bold shadow">🛑 停工</button>`;
+                                btnSlot4 = `<button onclick="openCompleteModal('${woId}', '${oId}', '${mac}')" class="w-20 bg-blue-600 text-white py-1 rounded font-bold shadow animate-pulse">🏁 完工</button>`;
                             }
-                         }
-                            
-                        }
-                        // 【需求 4 修復】MES 展開面板員工姓名查閱與按鈕
-                    if (currentSysName === 'MES') {
-                        const status = row['工單狀態']; const mac = row['作業機台']; const woId = row['工單編號']; const oId = row['關聯訂單'];
-                        let linkedOms = (systemCache['訂單管理']?.data || []).find(o => o['訂單編號'] === oId);
-                        
-
-                        let matHtml = '<span class="text-gray-400">無法讀取用料</span>';
-                        if (linkedOms && linkedOms['配料明細']) {
-                            try {
-                                let bom = JSON.parse(linkedOms['配料明細']);
-                                if(bom.length>0) {
-                                    matHtml = `<table class="w-full text-xs text-left border-collapse border border-gray-300"><thead><tr class="bg-gray-100"><th class="p-1 border border-gray-300">物料</th><th class="p-1 border border-gray-300 w-16 text-center">用量</th></tr></thead><tbody>` + bom.map(m => `<tr><td class="p-1 border border-gray-300">${m.id}</td><td class="p-1 border border-gray-300 text-center font-bold text-red-600">${m.qty}</td></tr>`).join('') + `</tbody></table>`;
-                                }
-                            } catch(e){}
-                        }
-                        
-                        let stepsHtml = '';
-                        try {
-                            let steps = JSON.parse(row['工序明細'] || "[]"); let currentIdx = parseInt(row['當前進度索引']) || 0;
-                            if(steps.length > 0) {
-                                let sRows = steps.map((s, idx) => {
-                                    let isDone = idx < currentIdx; let isCurr = idx === currentIdx;
-                                    let sStatus = isDone ? '已完工' : (isCurr ? status : '等待中');
-                                    let color = isDone ? 'text-green-600' : (isCurr ? 'text-blue-600 font-bold' : 'text-gray-400');
-                                    let outQtyText = s.outQty !== undefined ? `<br><span class="text-[10px] text-green-700">產出: ${s.outQty}</span>` : '';
-                                    
-                                    // 查詢員工姓名
-                                    let empObj = (currentDropdowns['員工姓名']||[]).find(e => {
-                                        if(typeof e === 'object') return e.id == s.emp || e.name.includes(s.emp);
-                                        return e == s.emp;
-                                    });
-                                    let eName = empObj ? (typeof empObj === 'object' ? empObj.name : empObj) : s.emp;
-                                    
-                                    return `<tr class="${isCurr ? 'bg-indigo-50' : ''}"><td class="p-1 border border-gray-300 text-center">${idx+1}</td><td class="p-1 border border-gray-300">${s.name}</td><td class="p-1 border border-gray-300 text-center">${eName}</td><td class="p-1 border border-gray-300 text-center ${color}">${sStatus}${outQtyText}</td></tr>`;
-                                }).join('');
-                                stepsHtml = `<table class="w-full text-xs text-left border-collapse border border-gray-300 mt-1"><thead><tr class="bg-gray-100"><th class="p-1 border border-gray-300 w-10 text-center">順序</th><th class="p-1 border border-gray-300">工序</th><th class="p-1 border border-gray-300 w-20 text-center">人員</th><th class="p-1 border border-gray-300 w-20 text-center">狀態</th></tr></thead><tbody>${sRows}</tbody></table>`;
-                            }
-                        } catch(e){}
-                        detailsHTML += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-white p-3 rounded border"><strong class="text-moSide text-xs block mb-1">📦 訂單總用料</strong>${matHtml}</div><div class="bg-white p-3 rounded border"><strong class="text-moSide text-xs block mb-1">🏭 工序進度與產出</strong>${stepsHtml}</div></div>`;
-                    }
-
-                    const totalColSpan = displayHeaders.length + 1;
-                    tableHTML += `<tr id="btn_row_${index}" class="hidden bg-gray-50 border-b border-gray-200"><td colspan="${totalColSpan}" class="p-2 pl-12"><div class="flex flex-wrap items-center gap-4 text-xs">`;
-                    
-                    if (detailsHTML !== '') { 
-                        tableHTML += `<button id="btn_detail_${index}" onclick="toggleDetails('detail_${index}')" class="w-20 bg-gray-200 border border-gray-300 text-gray-700 py-1 rounded font-bold hover:bg-gray-300 transition-colors">查看 ▼</button>`; 
-                    }
-                        else if (currentSysName === 'EQS') {
-                            const status = row['當前狀態']; const mac = row['設備編號'];
-                            const targetMacId = row['工序編號'] || row['設備編號'] || mac;
-                            btnSlot1 = `<button onclick="openEqsHistory('${targetMacId}')" class="w-20 bg-gray-500 text-white py-1 rounded font-bold">📊 紀錄</button>`;
-                            if (status === '報修中' || status === '掛修') btnSlot2 = `<button onclick="finishRepair('${mac}', this)" class="w-20 bg-green-600 text-white py-1 rounded font-bold">🛠️ 完修</button>`;
-                            else if (status === '生產中' || status === '待機中') { 
+                        } else if (currentSysName === 'EQS') {
+                            const status = row['當前狀態']; const mac = row['設備編號'] || row['工序編號'];
+                            btnSlot1 = `<button onclick="openEqsHistory('${mac}')" class="w-20 bg-gray-500 text-white py-1 rounded font-bold">📊 紀錄</button>`;
+                            if (status === '報修中' || status === '掛修') {
+                                btnSlot4 = `<button onclick="finishRepair('${mac}', this)" class="w-20 bg-green-600 text-white py-1 rounded font-bold">🛠️ 完修</button>`;
+                            } else if (status === '生產中' || status === '待機中') { 
                                 btnSlot2 = `<button onclick="openRepairModal('${mac}')" class="w-20 bg-red-500 text-white py-1 rounded font-bold">🔧 報修</button>`; 
-                                btnSlot3 = `<button onclick="openMaintModal('${mac}')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold">💆 保養</button>`; }
-                        }
-                        else if (currentSysName === 'ERP') { 
-                            btnSlot1 = `<button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}')" class="w-24 bg-yellow-400 text-yellow-900 py-1 rounded hover:bg-yellow-500 font-bold shadow-sm">🛒 補貨申請</button>`; 
+                                btnSlot4 = `<button onclick="openMaintModal('${mac}')" class="w-20 bg-yellow-500 text-white py-1 rounded font-bold">💆 保養</button>`; 
+                            }
+                        } else if (currentSysName === 'ERP') { 
+                            btnSlot4 = `<button onclick="openReplenishModal('${row['物料編號']}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}')" class="w-24 bg-yellow-400 text-yellow-900 py-1 rounded hover:bg-yellow-500 font-bold shadow-sm">🛒 補貨申請</button>`; 
                         }
                     }
                     tableHTML += `${btnSlot1}${btnSlot2}${btnSlot3}${btnSlot4}`;
