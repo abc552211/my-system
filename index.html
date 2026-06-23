@@ -706,7 +706,7 @@
                     tableHTML += `<tr class="${bgClass} hover:bg-gray-50 transition-colors erp-row" data-index="${index}" ${dataLowAttr} ${dataResAttr}>`;
                     tableHTML += `<td onclick="toggleRowButtons(${index}, this)" class="p-3 text-center cursor-pointer text-moSide font-bold text-sm select-none hover:text-black">▶</td>`;
                     
-                    let detailsHTML = '';
+                    // --- 1. 專心畫外部的表格 <td> ---
                     displayHeaders.forEach(key => {
                         let val = row[key] || '';
                         
@@ -744,6 +744,18 @@
                         tableHTML += `<td class="p-3">${val}</td>`;
                     });
                     tableHTML += `</tr>`;
+
+                    // --- 2. 專心累積內部的收合卡片 (detailsHTML) ---
+                    let detailsHTML = '';
+                    currentHeaders.forEach(h => {
+                        // 確保只有長文本欄位才會進來這個常態防呆，而不會把上面隱藏的短欄位又畫出來
+                        if (h.includes('備註') || h.includes('細項') || h.includes('簡述') || h.includes('內容') || h.includes('說明')) {
+                            let textVal = row[h] || '';
+                            if (String(textVal).trim() !== '' && textVal !== '🔒 無權限' && textVal !== '未結案') {
+                                detailsHTML += `<div class="mb-2 text-xs"><strong class="text-moSide block font-bold mb-0.5">▪ ${h}：</strong><p class="text-gray-600 bg-white p-2 rounded border border-gray-200 whitespace-pre-wrap leading-relaxed shadow-sm">${String(textVal).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p></div>`;
+                            }
+                        }
+                    });
 
                     // 【智慧升級】全自動常態長文本反查置入引擎：外層表格絕不顯露渲染，內層小卡集中美化呈現
                     currentHeaders.forEach(h => {
