@@ -663,12 +663,15 @@
                 ? currentHeaders.filter(h => h !== '可視系統' && h !== '可操作系統' && h !== '可編輯系統') 
                 : currentHeaders.filter(h => h !== '配料明細' && h !== '工序明細' && h !== '工序明細JSON');
 
-            // 【需求 2】CRM 模組主要欄位精簡過濾 (隱藏的放入展開面板，剩下的自動顯示在外部)
-            const crmHideHeaders = ['常用盒型', '偏好材質', '特殊要求備註', '客戶代號', '統一編號', '聯絡地址','傳真', '地址', '備註', '銀行代碼', '匯款帳號'];
+            // 【智慧修正點】全域過濾：任何包含長文本關鍵字的常態欄位，一律不顯示於外層表格，防範撐開版面
+            displayHeaders = displayHeaders.filter(h => !h.includes('備註') && !h.includes('細項') && !h.includes('簡述') && !h.includes('內容') && !h.includes('說明'));
+
+            // 【需求 2 修正】CRM 模組主要欄位過濾 (將客戶編號與其他私密資料藏入內層，外層主表格自然保留 [手機] 欄位)
+            const crmHideHeaders = ['常用盒型', '偏好材質', '客戶編號', '統一編號', '聯絡地址', '地址', '傳真', '銀行代碼', '匯款帳號'];
             if (currentSysName === 'CRM') { displayHeaders = displayHeaders.filter(h => !crmHideHeaders.includes(h)); }
 
-            // 【需求 1】SUP 模組過濾 (只留大類、供應商名稱、電話、窗口在外面)
-            const supHideHeaders = ['供應商編號', '統一編號', '地址', '傳真', '備註', '銀行代碼', '匯款帳號'];
+            // 【需求 1 修正】SUP 模組過濾 (外層只保留：大類、供應商名稱、電話、窗口)
+            const supHideHeaders = ['供應商編號', '統一編號', '地址', '聯絡地址', '傳真', '銀行代碼', '匯款帳號'];
             if (currentSysName === 'SUP') { displayHeaders = displayHeaders.filter(h => !supHideHeaders.includes(h)); }
 
             const omsHideHeaders = ['數量', '預估良率', '產出量', '預估成本', '運費成本', '運費報價', '運費備註'];
@@ -697,7 +700,6 @@
                         reps.forEach(r => { isRestocking = true; restockQty += (parseFloat(r.reqQty) || 0) - (parseFloat(r.inQty) || 0); });
                     }
 
-                    // 智慧判定高亮行屬性 (快篩過濾對齊)
                     let dataLowAttr = isLowStock ? 'data-low="true"' : 'data-low="false"';
                     let dataResAttr = (isRestocking && restockQty > 0) ? 'data-res="true"' : 'data-res="false"';
 
@@ -708,16 +710,11 @@
                     displayHeaders.forEach(key => {
                         let val = row[key] || '';
                         
-                        // 【需求 2 修復】攔截並格式化帶有 T 和 Z 的原生 ISO 時間字串
+                        // 時間格式化過濾
                         if (typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
                             let d = new Date(val);
                             if (!isNaN(d)) {
-                                val = d.getFullYear() + '/' + 
-                                      String(d.getMonth()+1).padStart(2,'0') + '/' + 
-                                      String(d.getDate()).padStart(2,'0') + ' ' + 
-                                      String(d.getHours()).padStart(2,'0') + ':' + 
-                                      String(d.getMinutes()).padStart(2,'0') + ':' + 
-                                      String(d.getSeconds()).padStart(2,'0');
+                                val = d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
                             }
                         }
 
@@ -744,13 +741,19 @@
                                 val = displayVal;
                             }
                         }
-                        if (key.includes('備註') || key.includes('細項') || key.includes('簡述') || key.includes('報修內容') || key === '內容') {
-                            const safeText = String(val).replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                            if(safeText.trim() !== '') detailsHTML += `<strong class="text-moSide">${key}:</strong> <br/> <p class="mt-1 mb-3 text-gray-600">${safeText.replace(/\n/g, '<br/>')}</p>`;
-                            tableHTML += `<td class="p-3">${val}</td>`;
-                        } else { tableHTML += `<td class="p-3">${val}</td>`; }
+                        tableHTML += `<td class="p-3">${val}</td>`;
                     });
                     tableHTML += `</tr>`;
+
+                    // 【智慧升級】全自動常態長文本反查置入引擎：外層表格絕不顯露渲染，內層小卡集中美化呈現
+                    currentHeaders.forEach(h => {
+                        if (h.includes('備註') || h.includes('細項') || h.includes('簡述') || h.includes('內容') || h.includes('說明')) {
+                            let textVal = row[h] || '';
+                            if (String(textVal).trim() !== '' && textVal !== '🔒 無權限' && textVal !== '未結案') {
+                                detailsHTML += `<div class="mb-2 text-xs"><strong class="text-moSide block font-bold mb-0.5">▪ ${h}：</strong><p class="text-gray-600 bg-white p-2 rounded border border-gray-200 whitespace-pre-wrap leading-relaxed shadow-sm">${String(textVal).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p></div>`;
+                            }
+                        }
+                    });
 
                     // ================= 各模組智慧下收與大數據反查引擎 =================
                     
