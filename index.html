@@ -611,9 +611,9 @@
                     eipHtml += `<p class="text-gray-400 text-center py-8 bg-gray-50 rounded-lg border border-dashed">目前無掛載交接事項</p>`;
                 } else {
                     const priorityWeight = { '高': 1, '中': 2, '低': 3 };
-                    // 【需求 1】強固過濾：只保留唯一發布時間的交接事項，消滅重複
-                    let uniqueHandovers = Array.from(new Map(currentHandovers.map(item => [item.time, item])).values());
-                    let sortedHandovers = [...currentHandovers].sort((a, b) => {
+                    // 【修正 1】過濾重複的交接事項 (以時間與內容作為唯一值判斷)
+                    let uniqueHandovers = Array.from(new Map(currentHandovers.map(item => [item.time + item.content, item])).values());
+                    let sortedHandovers = [...uniqueHandovers].sort((a, b) => {
                         let pA = priorityWeight[a.priority] || 4;
                         let pB = priorityWeight[b.priority] || 4;
                         if (pA !== pB) return pA - pB;
@@ -677,7 +677,7 @@
             const supHideHeaders = ['供應商編號', '統一編號', '地址', '傳真', '備註', '銀行代碼', '匯款帳號'];
             if (currentSysName === 'SUP') { displayHeaders = displayHeaders.filter(h => !supHideHeaders.includes(h)); }
 
-            const omsHideHeaders = ['數量', '預估良率', '產出量', '預估成本', '運費成本', '運費報價', '運費備註', '工序規劃記錄', '貨運單號', '出貨時間', '示意圖'];
+            const omsHideHeaders = ['數量', '預估良率', '產出量', '預估成本', '運費成本', '運費報價', '運費備註', '工序規劃紀錄', '示意圖', '貨運單號', '出貨時間'];
             if (currentSysName === 'OMS') { displayHeaders = displayHeaders.filter(h => !omsHideHeaders.includes(h)); }
 
             tableHTML += `<th class="p-3 w-10 text-center select-none"></th>`;
@@ -783,7 +783,6 @@
                 
                  
                 // 【需求 1, 8 修復】ERP 展開面板：補回補貨申請單(進貨按鈕)、進貨與使用紀錄、異常登記
-                // 【需求 7 & 8】ERP 展開面板：物料明細全展開、補貨申請連動與材料異常登記
                 if (currentSysName === 'ERP') {
                     let mId = row['物料編號'];
                     detailsHTML += `<div class="bg-gray-50 p-4 rounded-lg border space-y-3 mb-2 text-xs">`;
@@ -792,15 +791,12 @@
                     fields.forEach(f => { detailsHTML += `<div><span class="text-gray-400 block text-[11px]">${f}</span><span class="font-bold text-gray-800">${row[f]||'無'}</span></div>`; });
                     detailsHTML += `</div>`;
                     
-                    // 【需求 5】補回印 PDF 按鈕
-                    let mReplenish = currentReplenish.filter(r => r.matId === mId && r.status !== '已結案');
+                    // 【修正 3】補貨單去重複
+                    let rawReplenish = currentReplenish.filter(r => r.matId === mId && r.status !== '已結案');
+                    let mReplenish = Array.from(new Map(rawReplenish.map(r => [r.repId, r])).values());
                     let replHtml = mReplenish.map(r => {
                         let formattedTime = r.time.replace('T', ' ').substring(0, 19);
-                        return `<tr><td class="p-1 border">${formattedTime}</td><td class="p-1 border font-mono">${r.repId}</td><td class="p-1 border text-orange-600 font-bold">${r.reqQty}</td><td class="p-1 border text-blue-600 font-bold">${r.inQty}</td>
-                        <td class="p-1 border text-center w-28">
-                            <button onclick="generateReplenishPDF('${r.repId}', '${r.reqQty}', '${r.matId}', '${r.supplier}', '${r.reason||''}')" class="bg-gray-600 text-white px-2 py-0.5 rounded text-[10px] hover:bg-gray-700 shadow-sm mr-1">🖨️ 印</button>
-                            <button onclick="openRestockFromRepl('${r.repId}', '${r.matId}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}', ${r.reqQty - r.inQty})" class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] hover:bg-blue-700 shadow-sm">📦 進</button>
-                        </td></tr>`;
+                        return `<tr><td class="p-1 border">${formattedTime}</td><td class="p-1 border font-mono">${r.repId}</td><td class="p-1 border text-orange-600 font-bold">${r.reqQty}</td><td class="p-1 border text-blue-600 font-bold">${r.inQty}</td><td class="p-1 border text-center w-16"><button onclick="openRestockFromRepl('${r.repId}', '${r.matId}', '${encodeURIComponent(row['品名']||'')}', '${row['供應商']||''}', ${r.reqQty - r.inQty})" class="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] hover:bg-blue-700 transition-colors shadow-sm">📦 進貨</button></td></tr>`;
                     }).join('');
                     
                     if(replHtml) {
@@ -811,8 +807,9 @@
                         </table></div>`;
                     }
 
-                    // 【需求 1】進貨紀錄增加進貨總金額
-                    let mRestocks = currentRestocks.filter(r => r.matId === mId).slice(0, 10);
+                    // 【修正 3】進貨紀錄去重複，並補齊 5 個表頭與內容對齊
+                    let rawRestocks = currentRestocks.filter(r => r.matId === mId);
+                    let mRestocks = Array.from(new Map(rawRestocks.map(r => [r.time + r.qty, r])).values()).slice(0, 10);
                     let rsHtml = mRestocks.map(r => `<tr><td class="p-1 border">${r.time.replace('T', ' ').substring(0, 19)}</td><td class="p-1 border text-blue-600 font-bold">${r.qty}</td><td class="p-1 border text-green-600 font-bold">$${parseFloat(r.amount||0).toLocaleString()}</td><td class="p-1 border">${r.supplier}</td><td class="p-1 border">${r.vendorShipId||'-'}</td></tr>`).join('');
                     if(!rsHtml) rsHtml = `<tr><td colspan="5" class="p-1 border text-center text-gray-400">尚無進貨紀錄</td></tr>`;
                     
