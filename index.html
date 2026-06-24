@@ -222,10 +222,13 @@
                     <textarea id="estFinalDetailsText" class="w-full flex-1 p-3 border rounded-xl text-sm focus:ring-1 focus:ring-moSide" style="min-height:100px; resize:vertical;"></textarea>
                 </div>
                 <div class="mt-3">
-                    <label class="block text-sm font-bold text-moSide mb-1">🖼️ 上傳估價示意圖 (最多2張，印於單據尾部)</label>
-                    <input type="file" id="estImages" accept="image/*" multiple max="2" onchange="handleEstImages(this)" class="w-full text-xs text-gray-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:bg-gray-200 hover:file:bg-gray-300">
-                    <div id="estImagePreviewContainer" class="flex gap-2 mt-2"></div>
-                </div>
+    <div class="flex justify-between items-center mb-1">
+        <label class="block text-sm font-bold text-moSide">🖼️ 上傳估價示意圖 (最多2張，印於單據尾部)</label>
+        <button type="button" onclick="clearEstImages()" class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded hover:bg-red-200 font-bold transition-colors">❌ 清除檔案</button>
+    </div>
+    <input type="file" id="estImages" accept="image/*" multiple max="2" onchange="handleEstImages(this)" class="w-full text-xs text-gray-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:bg-gray-200 hover:file:bg-gray-300">
+    <div id="estImagePreviewContainer" class="flex gap-2 mt-2"></div>
+</div>
             </div>
             <div class="p-4 border-t flex justify-end gap-2 bg-gray-50">
                 <button onclick="closeModal('matModal')" class="px-4 py-2 text-xs border hover:bg-gray-100 rounded-lg">取消</button>
@@ -3020,6 +3023,13 @@ function handleEstImages(input) {
             container.innerHTML += `<img src="${base64}" class="h-16 w-16 object-cover rounded border border-gray-300">`;
         });
     });
+}
+
+        // 【新增】清除已選取示意圖、縮圖與全域暫存變數
+function clearEstImages() {
+    document.getElementById('estImages').value = '';
+    window.estImagesData = [];
+    document.getElementById('estImagePreviewContainer').innerHTML = '';
 }
         
         // 在 submitMaterialCheck 中加入圖片陣列：
