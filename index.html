@@ -3017,6 +3017,7 @@
 function handleEstImages(input) {
     let files = Array.from(input.files);
     
+    
     files.forEach(file => {
         // 檢查是否已達 2 張上限
         if (window.estImagesData.length >= 2) {
@@ -3028,7 +3029,7 @@ function handleEstImages(input) {
             // 非同步再次防禦檢查
             if (window.estImagesData.length < 2) {
                 window.estImagesData.push(base64); // 累加寫入，不再清空舊資料
-                renderEstImagesPreview();        // 觸發重新渲染預覽
+                renderEstImagesPreview(false); //  <-- 這裡改為固定傳入 false
                 calcMatCost();                   // 連動精算金額
             }
         });
@@ -3038,33 +3039,36 @@ function handleEstImages(input) {
     input.value = '';
 }
 
-// 2. 新增：獨立預覽渲染器（包含各自獨立的刪除按鈕）
-function renderEstImagesPreview() {
+// 預覽渲染器：依據唯讀狀態，動態決定要不要出現個別刪除 ❌ 按鈕
+function renderEstImagesPreview(isReadOnly = false) {
     let container = document.getElementById('estImagePreviewContainer');
     container.innerHTML = '';
     
     window.estImagesData.forEach((base64, index) => {
+        // 如果是唯讀(例如扣料階段)，就不顯示刪除叉叉
+        let delBtn = isReadOnly ? '' : `<button type="button" onclick="removeEstImage(${index})" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow-md hover:bg-red-600 transition-colors">&times;</button>`;
+        
         container.innerHTML += `
-            <div class="relative inline-block h-16 w-16 mt-1">
+            <div class="relative inline-block h-16 w-16 mt-1 mr-2">
                 <img src="${base64}" onclick="openImageModal(this.src)" class="h-16 w-16 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">
-                <button type="button" onclick="removeEstImage(${index})" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow-md hover:bg-red-600 transition-colors">&times;</button>
+                ${delBtn}
             </div>
         `;
     });
 }
 
-// 3. 新增：刪除單一指定索引的圖片
+// 移除單張圖片
 function removeEstImage(index) {
-    window.estImagesData.splice(index, 1); // 移除陣列中該張圖片
-    renderEstImagesPreview();              // 重新渲染畫面
-    calcMatCost();                         // 重新精算金額
+    window.estImagesData.splice(index, 1);
+    renderEstImagesPreview(false); // 移除後重新渲染（維持編輯模式）
+    calcMatCost();
 }
 
-// 4. 更新：一鍵全清函數
+// 一鍵清空圖片
 function clearEstImages() {
     document.getElementById('estImages').value = '';
     window.estImagesData = [];
-    renderEstImagesPreview();
+    renderEstImagesPreview(false);
     calcMatCost();
 }
         
@@ -3079,6 +3083,21 @@ function clearEstImages() {
             document.getElementById('planOrderId').innerText = orderId;
             let rowData = currentTableData.find(r => r['訂單編號'] === orderId) || {};
             try { window.tempBomForPlan = JSON.parse(rowData['配料明細'] || "[]"); } catch(e){ window.tempBomForPlan = []; }
+            // 【關鍵修復】再次估價時，自動把檔案裡原本的示意圖撈出來丟進暫存，才不會漏掉或被洗掉
+window.estImagesData = [];
+if (rowData['示意圖'] && String(rowData['示意圖']).trim() !== '') {
+    try {
+        window.estImagesData = typeof rowData['示意圖'] === 'string' ? JSON.parse(rowData['示意圖']) : rowData['示意圖'];
+        if (!Array.isArray(window.estImagesData)) window.estImagesData = [];
+    } catch(e) { window.estImagesData = []; }
+}
+// 渲染現有圖片（傳入目前是否為唯讀狀態）
+renderEstImagesPreview(isReadOnly);
+
+// 控制上傳按鈕與清除按鈕是否隨狀態停用
+document.getElementById('estImages').disabled = isReadOnly;
+let clearBtn = document.querySelector('button[onclick="clearEstImages()"]');
+if (clearBtn) clearBtn.disabled = isReadOnly;
             document.getElementById('planStepsContainer').innerHTML = '';
             addPlanRow(); document.getElementById('planModal').classList.remove('hidden');
         }
