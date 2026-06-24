@@ -3011,64 +3011,26 @@
             }).addRestock(matId, qtyNum, amount, supplier, orderId, vendorShipId, op);
         }
 
-            window.estImagesData = []; // 全域暫存陣列
-
-// 1. 支援分次上傳：累加圖片直到 2 張上限
+        window.estImagesData = [];
 function handleEstImages(input) {
-    let files = Array.from(input.files);
-    
+    window.estImagesData = [];
+    let container = document.getElementById('estImagePreviewContainer'); container.innerHTML = '';
+    let files = Array.from(input.files).slice(0, 2); // 最多2張
     files.forEach(file => {
-        // 檢查是否已達 2 張上限
-        if (window.estImagesData.length >= 2) {
-            alert("⚠️ 最多只能上傳 2 張示意圖！");
-            return;
-        }
-        
+        // 自動將估價單示意圖壓縮，大小剩不到 1%，確保後端接收不卡死、完美寫入 Sheet
         compressImage(file, 800, 800, 0.7, function(base64) {
-            // 非同步再次防禦檢查
-            if (window.estImagesData.length < 2) {
-                window.estImagesData.push(base64); // 累加寫入，不再清空舊資料
-                renderEstImagesPreview();        // 觸發重新渲染預覽
-                calcMatCost();                   // 連動精算金額
-            }
+            window.estImagesData.push(base64);
+            container.innerHTML += `<img src="${base64}" class="h-16 w-16 object-cover rounded border border-gray-300">`;
         });
     });
-    
-    // 【關鍵防呆】清空 input 的選取值，這樣下一次點擊才能重複觸發 onchange 選擇第二張
-    input.value = '';
 }
 
-// 2. 新增：獨立預覽渲染器（包含各自獨立的刪除按鈕）
-function renderEstImagesPreview() {
-    let container = document.getElementById('estImagePreviewContainer');
-    container.innerHTML = '';
-    
-    window.estImagesData.forEach((base64, index) => {
-        container.innerHTML += `
-            <div class="relative inline-block h-16 w-16 mt-1">
-                <img src="${base64}" onclick="openImageModal(this.src)" class="h-16 w-16 object-cover rounded border border-gray-300 cursor-pointer hover:opacity-80">
-                <button type="button" onclick="removeEstImage(${index})" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow-md hover:bg-red-600 transition-colors">&times;</button>
-            </div>
-        `;
-    });
-}
-
-// 3. 新增：刪除單一指定索引的圖片
-function removeEstImage(index) {
-    window.estImagesData.splice(index, 1); // 移除陣列中該張圖片
-    renderEstImagesPreview();              // 重新渲染畫面
-    calcMatCost();                         // 重新精算金額
-}
-
-// 4. 更新：一鍵全清函數
-function clearEstImages()
+        // 【新增】清除已選取示意圖、縮圖與全域暫存變數
+function clearEstImages() {
     document.getElementById('estImages').value = '';
     window.estImagesData = [];
-    renderEstImagesPreview();
-    calcMatCost();
+    document.getElementById('estImagePreviewContainer').innerHTML = '';
 }
-
-    
         
         // 在 submitMaterialCheck 中加入圖片陣列：
         // 修改原有的 `checkAndDeductMaterials(orderId, matArr, ...)` 傳參，把 window.estImagesData 塞進去。
