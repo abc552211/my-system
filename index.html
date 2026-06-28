@@ -905,10 +905,12 @@
                         try {
                             let config = schemaMaps[sheetName];
                             
-                            // 1. 突破主表格封印，並反轉陣列確保最新資料在最上方！
-                            let { data: rawData, error } = await sbClient.from(config.table).select('*').limit(10000);
+                            // 1. 突破主表格封印，並由資料庫底層強制最新置頂 (徹底解決幽靈 Bug！)
+                            let { data: rawData, error } = await sbClient.from(config.table)
+                                .select('*')
+                                .order(config.pk, { ascending: false })
+                                .limit(10000);
                             if (error) throw error;
-                            if (rawData) rawData.reverse(); 
                             
                             let translatedData = (rawData || []).map(r => toChineseRow(sheetName, r));
                             
@@ -1622,25 +1624,52 @@ deleteHandover: async function(id, operatorName) {
         window.filterTable = function() {
             if (!currentSheet || !systemCache[currentSheet]) return;
             
-            // 1. 抓取按鈕並觸發轉圈動畫
             const searchBtn = document.querySelector('button[onclick="filterTable()"]');
             const originalText = searchBtn ? searchBtn.innerHTML : '🔍 搜尋';
-            if (searchBtn) {
-                searchBtn.innerHTML = '<span class="btn-spinner"></span>搜尋中';
-                searchBtn.disabled = true;
-            }
+            if (searchBtn) { searchBtn.innerHTML = '<span class="btn-spinner"></span>搜尋中'; searchBtn.disabled = true; }
 
-            // 2. 讓渡主執行緒，讓瀏覽器有 50 毫秒畫出動畫，再執行大數據運算
             setTimeout(() => {
-                let rawData = systemCache[currentSheet].data || [];
-                renderTable(rawData, userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName));
+                const q = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
+                // 萬能切刀：支援空格、半形 %、全形 ％
+                const keywords = q.split(/[\s%％]+/).map(k => k.trim()).filter(k => k !== '');
                 
-                // 3. 運算與渲染結束，秒速恢復按鈕狀態
-                if (searchBtn) {
-                    searchBtn.innerHTML = originalText;
-                    searchBtn.disabled = false;
-                }
+                let rawData = systemCache[currentSheet].data || [];
+
+                // 1. 記憶體高速過濾
+                let filteredData = rawData.filter(row => {
+                    if (keywords.length > 0) {
+                        let rowText = Object.values(row).map(v => {
+                            let str = String(v || '');
+                            let richStr = str;
+                            // 自動擴充斜線與逗號，讓記憶體搜尋跟肉眼看到的一致
+                            if (str.match(/^\d{4}-\d{2}-\d{2}/)) richStr += ' ' + str.replace(/-/g, '/');
+                            if (!isNaN(str) && str !== '') richStr += ' ' + parseFloat(str).toLocaleString();
+                            return richStr;
+                        }).join(' ').toLowerCase();
+                        
+                        // 必須包含所有被切開的關鍵字
+                        if (!keywords.every(k => rowText.includes(k))) return false;
+                    }
+                    return true;
+                });
+
+                // 2. 將過濾後的結果存入暫存，供下拉載入使用，並重置顯示筆數
+                systemCache[currentSheet].filteredData = filteredData;
+                window.currentRenderLimit = 500; 
+
+                // 3. 把乾淨的資料丟給渲染引擎
+                renderTable(filteredData, userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName), false);
+                
+                if (searchBtn) { searchBtn.innerHTML = originalText; searchBtn.disabled = false; }
             }, 50);
+        };
+
+        // ================= 無限下拉引擎核心 =================
+        window.loadMoreRows = function() {
+            window.currentRenderLimit += 500;
+            // 【修復】優先讀取搜尋過濾後的暫存，確保下拉滑動時搜尋結果不會跑掉
+            let targetData = systemCache[currentSheet].filteredData || systemCache[currentSheet].data || [];
+            renderTable(targetData, userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName), true);
         };
 
 
@@ -4856,17 +4885,16 @@ function openFinishRepairModal(mac) {
 
         // ================= ERP 專屬快篩引擎 (大數據升級版) =================
         function filterErp(type) {
-            // 確保有資料快取
             if (!systemCache[currentSheet]) return;
             let rawData = systemCache[currentSheet].data || [];
 
-            // 如果是「全部顯示」，直接把所有資料交給渲染引擎 (會自動觸發 100 筆保護)
             if (type === 'all') {
+                systemCache[currentSheet].filteredData = rawData; // 存入暫存
+                window.currentRenderLimit = 500;
                 renderTable(rawData, userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName));
                 return;
             }
 
-            // 在記憶體中瞬間過濾上萬筆資料
             let filteredData = rawData.filter(row => {
                 let cat = String(row['類別'] || '');
                 let isServiceItem = cat.includes('外包') || cat.includes('服務') || cat.includes('加工') || cat.includes('代工') || cat.includes('費');
@@ -4884,11 +4912,11 @@ function openFinishRepairModal(mac) {
                     reps.forEach(r => { restockQty += (parseFloat(r.reqQty) || 0) - (parseFloat(r.inQty) || 0); });
                     return (restockQty > 0);
                 }
-                
                 return true;
             });
 
-            // 將過濾後的精準結果，交給渲染引擎畫出來
+            systemCache[currentSheet].filteredData = filteredData; // 存入暫存
+            window.currentRenderLimit = 500;
             renderTable(filteredData, userOpAuth.includes(currentSysName), userEditAuth.includes(currentSysName));
         }
 
