@@ -1084,6 +1084,8 @@
                                 machine_id: dbRow.machine_id, process_name: dbRow.machine_name, status: '待機中' 
                             }]);
                         }
+                        // 【強固防禦】新增完畢後，立刻清空該張表的舊快取，強迫下一次讀取必須抓 Supabase 最新資料
+                        if (systemCache[sheetName]) delete systemCache[sheetName];
                         this.getSheetData(sheetName);
                     },
 
@@ -1108,6 +1110,8 @@
                         }
 
                         await sbClient.from(config.table).update(dbRow).eq(config.pk, dbRow[config.pk]);
+                        // 【強固防禦】編輯完畢後，立刻清空舊快取
+                        if (systemCache[sheetName]) delete systemCache[sheetName];
                         this.getSheetData(sheetName);
                     },
 
@@ -1880,8 +1884,8 @@ deleteHandover: async function(id, operatorName) {
 
         function loadSystem(sysName, sheetName, forceRefresh = false) {
 
-            systemCache = {};
-
+            if (forceRefresh) { systemCache = {}; } // 強制刷新時清空快取
+            
             if(sysName === 'RPT') return loadReportSystem();
 
             document.getElementById('rptControlPanel').classList.add('hidden');
