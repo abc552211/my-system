@@ -500,9 +500,13 @@
         }
 
         // --- 🚀 Gemini LLM API 呼叫與指數退避模組 ---
+        
         async function callGemini(userQuery, systemPrompt, jsonSchema = null) {
-            const apiKey = ""; // Do not validate, execution environment provides the key at runtime
-            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            // 💡 已將您的金鑰確實填入下方變數中：
+            const apiKey = "AQ.Ab8RN6KOdyvKw7pNWHPBZrI2ABl1-HhqkC7KHLadLrqf5nYZPQ"; 
+    
+            // 建議一併將模型節點改為 2026 年當前最穩定的正式版 gemini-2.5-flash
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
             
             const payload = {
                 contents: [{ parts: [{ text: userQuery }] }],
