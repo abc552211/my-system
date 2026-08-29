@@ -165,6 +165,24 @@
 
       showOverlay("資料配對與綁定中...");
 
+      // 自動在聊天室留存紀錄的輔助函式 (完全無 Emoji)
+      const sendChatMessage = async (statusText, extraNote = "") => {
+        if (liff.isInClient()) {
+          try {
+            let msgText = `【門市服務資料建檔確認】\n姓名：${name}\n電話：${phone}\n生日：${formattedBirthday}\n狀態：${statusText}`;
+            if (extraNote) {
+              msgText += `\n備註：${extraNote}`;
+            }
+            await liff.sendMessages([{
+              type: "text",
+              text: msgText
+            }]);
+          } catch (err) {
+            console.warn("聊天室訊息發送失敗 (可能未取得權限或已由瀏覽器開啟):", err);
+          }
+        }
+      };
+
       try {
         // 1. 比對現有客戶
         const { data, error } = await supabaseClient
@@ -193,8 +211,11 @@
               .eq('code', matched.code);
           }
 
+          // 發送聊天室留存訊息 (比對成功)
+          await sendChatMessage("已完成線上配對綁定");
+
           hideOverlay();
-          alert(`🎉 綁定成功！已為您關聯【${matched.name}】的視光追蹤紀錄。`);
+          alert(`綁定成功！已為您關聯【${matched.name}】的視光追蹤紀錄。`);
           await fetchKidsByUID(currentUid);
         } else {
           // 2. 比對失敗：檢查是否已有相同 UID 與姓名的待處理申請（防重複送出）
@@ -208,11 +229,11 @@
           hideOverlay();
 
           if (existPending && existPending.length > 0) {
-            showErr("⚠️ 您的建檔申請門市正在為您核對中，請勿重複送出！");
+            showErr("您的建檔申請門市正在為您核對中，請勿重複送出！");
             return;
           }
 
-          // 無重複紀錄才寫入待處理表
+          // 寫入待處理表
           await supabaseClient
             .from('unbound_requests')
             .insert([{
@@ -225,7 +246,10 @@
               status: 'pending'
             }]);
 
-          showErr("⚠️ 門市尚未比對到此紀錄。已為您送出申請，門市專人將於 1-2 工作日內核對綁定！");
+          // 發送聊天室留存訊息 (待門市確認)
+          await sendChatMessage("已送出申請", "資料待門市專人核對");
+
+          showErr("門市尚未比對到此紀錄。已為您送出申請，門市專人將於 1-2 工作日內核對綁定！");
         }
       } catch (err) {
         hideOverlay();
