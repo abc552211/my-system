@@ -158,7 +158,6 @@
       if (!/^\d{10}$/.test(phone)) return showErr("手機格式錯誤！請輸入 10 碼數字 (例：0912345678)");
       if (!/^\d{7}$/.test(birthdayRaw)) return showErr("生日格式錯誤！請輸入民國共7碼 (例：1010119)");
 
-      // 轉換生日格式：1010119 -> 101/01/19
       const bY = parseInt(birthdayRaw.substring(0, 3), 10);
       const bM = birthdayRaw.substring(3, 5);
       const bD = birthdayRaw.substring(5, 7);
@@ -167,7 +166,7 @@
       showOverlay("資料配對與綁定中...");
 
       try {
-        // 1. 從 Supabase 比對客戶姓名
+        // 1. 比對現有客戶
         const { data, error } = await supabaseClient
           .from('customers')
           .select('*')
@@ -175,7 +174,6 @@
 
         if (error) throw error;
 
-        // 比對電話或生日
         const matched = (data || []).find(c => {
           const cPhone = (c.phone || '').replace(/[^\d]/g, '');
           const matchP = cPhone && cPhone.includes(phone);
@@ -184,7 +182,7 @@
         });
 
         if (matched) {
-          // 比對成功：將 UID 加入該客戶的 line_uids 陣列
+          // 比對成功：將 UID 寫入客戶 line_uids 陣列
           let uids = matched.line_uids || [];
           if (!Array.isArray(uids)) uids = [];
           if (!uids.includes(currentUid)) {
@@ -199,7 +197,22 @@
           alert(`🎉 綁定成功！已為您關聯【${matched.name}】的視光追蹤紀錄。`);
           await fetchKidsByUID(currentUid);
         } else {
-          // 比對失敗：寫入待處理請求表 unbound_requests
+          // 2. 比對失敗：檢查是否已有相同 UID 與姓名的待處理申請（防重複送出）
+          const { data: existPending } = await supabaseClient
+            .from('unbound_requests')
+            .select('id')
+            .eq('uid', currentUid)
+            .eq('name', name)
+            .eq('status', 'pending');
+
+          hideOverlay();
+
+          if (existPending && existPending.length > 0) {
+            showErr("⚠️ 您的建檔申請門市正在為您核對中，請勿重複送出！");
+            return;
+          }
+
+          // 無重複紀錄才寫入待處理表
           await supabaseClient
             .from('unbound_requests')
             .insert([{
@@ -212,8 +225,7 @@
               status: 'pending'
             }]);
 
-          hideOverlay();
-          showErr("⚠️ 門市資料庫尚未比對到此紀錄。已為您送出建檔申請，門市專人將於 1-2 工作日內手動核對綁定！");
+          showErr("⚠️ 門市尚未比對到此紀錄。已為您送出申請，門市專人將於 1-2 工作日內核對綁定！");
         }
       } catch (err) {
         hideOverlay();
@@ -269,7 +281,8 @@
       dataArray.forEach(function(item) {
         html += `
           <div class="kid-card">
-            <div class="kid-name">${maskNameText(item.name)} (編號: ${item.code})</div>
+            <!-- 僅顯示姓名，不顯示客戶編號 -->
+            <div class="kid-name">${maskNameText(item.name)}</div>
             <div class="item"><div class="t">商品方案</div><div class="v">${item.product || "-"}</div></div>
             <div class="item"><div class="t">最近回診日</div><div class="v">${item.lastVisit || "-"}</div></div>
             <div class="item"><div class="t">未回診天數</div><div class="v">${item.overdueDays ? item.overdueDays + ' 天' : "-"}</div></div>
@@ -279,8 +292,13 @@
             </div>
             ${item.alCheckDate ? `
             <div class="flex-row" style="margin-top:6px;">
-              <div class="box"><div class="t">AL OD (眼軸)</div><div class="v">${item.alOD || "-"} mm</div></div>
-              <div class="box"><div class="t">AL OS (眼軸)</div><div class="v">${item.alOS || "-"} mm</div></div>
+              <div class="box"><div class="t">AL 右眼軸</div><div class="v">${item.alOD || "-"} mm</div></div>
+              <div class="box"><div class="t">AL 左眼軸</div><div class="v">${item.alOS || "-"} mm</div></div>
+            </div>` : ''}
+            ${(item.od_lens_photo || item.os_lens_photo) ? `
+            <div class="flex-row" style="margin-top:8px;">
+              ${item.od_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">右眼鏡片照</div><img src="${item.od_lens_photo}" style="width:100%; max-height:120px; object-fit:contain; border-radius:4px; margin-top:4px;"></div>` : ''}
+              ${item.os_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">左眼鏡片照</div><img src="${item.os_lens_photo}" style="width:100%; max-height:120px; object-fit:contain; border-radius:4px; margin-top:4px;"></div>` : ''}
             </div>` : ''}
           </div>
         `;
