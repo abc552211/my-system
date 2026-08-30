@@ -59,6 +59,7 @@
     .lens { width: 36px; height: 36px; border: 3.5px solid #6d5c53; border-radius: 50%; background: rgba(156, 168, 158, 0.15); }
     .bridge { width: 14px; height: 3.5px; background: #6d5c53; margin: 0 -2px; }
     .loading-text { color: #6d5c53; font-size: 14px; font-weight: bold; }
+    .warning-text { font-size: 11px; font-weight: normal; color: #94a3b8; text-align: center; margin-top: 18px; line-height: 1.4; display: none; }
   </style>
 </head>
 <body>
@@ -100,7 +101,7 @@
     </div>
 
     <div id="resArea" class="result-area"></div>
-    <div id="warningMsg" class="warning-text">【提醒：OK鏡片建議 1.5 ~ 2 年定期更換】</div>
+    <div id="warningMsg" class="warning-text">此服務系統為大學桃園南崁獨家系統，本服務開發者有權隨時終止服務且不另行通知。</div>
 
     <a href="https://line.me/R/ti/p/@rjm4151u" target="_blank" id="linkBtn" class="btn btn-yellow">點此預約門市回診</a>
     <button id="addKidBtn" class="btn btn-blue" onclick="showAddForm()">➕ 綁定其他小朋友</button>
@@ -341,7 +342,15 @@
       document.getElementById('msg').innerText = text;
     }
 
-    // 依 5 大類型精準呈現卡片內容
+    // 輔助函式：十六進位色碼轉為帶有透明度的 RGBA 背景
+    function hexToRgba(hex, alpha = 0.08) {
+      if (!hex || !hex.startsWith('#') || hex.length < 7) return 'rgba(92, 138, 107, 0.08)';
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
     function renderData(dataArray) {
       document.getElementById('msg').style.color = "#5c8a6b";
       document.getElementById('msg').innerText = "已為您載入視光管理紀錄";
@@ -356,7 +365,6 @@
         
         const displayProductName = conf.displayName || rawProduct || "視光方案";
         
-        // 判定 5 大類型代碼
         let cardType = conf.cardType;
         if (!cardType) {
           if (rawProduct.includes('離焦大片') || rawProduct.includes('離焦眼鏡') || rawProduct.includes('HOYA')) {
@@ -372,24 +380,28 @@
           }
         }
 
-        let badgeClass = "badge-ok";
+        const badgeCol = conf.badgeColor || '#5c8a6b';
+        const odCol = conf.odColor || '#5c8a6b';
+        const osCol = conf.osColor || '#3b82f6';
+
+        const badgeStyle = `background: ${hexToRgba(badgeCol, 0.12)}; color: ${badgeCol}; border: 1px solid ${hexToRgba(badgeCol, 0.35)};`;
+        const odBoxStyle = `background: ${hexToRgba(odCol, 0.06)}; border-left: 3.5px solid ${odCol};`;
+        const osBoxStyle = `background: ${hexToRgba(osCol, 0.06)}; border-left: 3.5px solid ${osCol};`;
+
         let cardBodyHTML = "";
 
-        // 共通：眼軸長 (AL) 區塊產生輔助
         const alHtml = item.alCheckDate ? `
           <div class="flex-row" style="margin-top:6px;">
             <div class="box"><div class="t">AL 右眼軸長</div><div class="v">${item.alOD || "-"} mm</div></div>
             <div class="box"><div class="t">AL 左眼軸長</div><div class="v">${item.alOS || "-"} mm</div></div>
           </div>` : '';
 
-        // 共通：雙眼照片 (OD/OS 標示)
         const photoDoubleHtml = (item.od_lens_photo || item.os_lens_photo) ? `
           <div class="flex-row" style="margin-top:8px;">
             ${item.od_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">右眼照 (點擊放大)</div><img src="${item.od_lens_photo}" class="lens-img-clickable" onclick="openImageModal('${item.od_lens_photo}')"></div>` : ''}
             ${item.os_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">左眼照 (點擊放大)</div><img src="${item.os_lens_photo}" class="lens-img-clickable" onclick="openImageModal('${item.os_lens_photo}')"></div>` : ''}
           </div>` : '';
 
-        // 共通：單張/合併照片 ([紀錄照] 標示，不分 OD/OS)
         const singlePhotoSrc = item.od_lens_photo || item.os_lens_photo;
         const photoRecordHtml = singlePhotoSrc ? `
           <div style="margin-top:8px;">
@@ -399,17 +411,14 @@
             </div>
           </div>` : '';
 
-        // ==========================================
-        // 類型 1：OK 塑型片
-        // ==========================================
+        // 1. OK 塑型片 (換片提醒與衛教整合於卡片內)
         if (cardType === 'ok') {
-          badgeClass = "badge-ok";
           cardBodyHTML = `
             <div class="item"><div class="t">最近回診檢查日</div><div class="v">${item.lastVisit || "-"}</div></div>
             <div class="item"><div class="t">未回診天數</div><div class="v">${item.overdueDays ? item.overdueDays + ' 天' : "-"}</div></div>
             <div class="flex-row">
-              <div class="box box-green"><div class="t">右眼(OD)使用時間</div><div class="v">${item.odDuration || "-"}</div></div>
-              <div class="box box-green"><div class="t">左眼(OS)使用時間</div><div class="v">${item.osDuration || "-"}</div></div>
+              <div class="box" style="${odBoxStyle}"><div class="t">右眼(OD)使用時間</div><div class="v">${item.odDuration || "-"}</div></div>
+              <div class="box" style="${osBoxStyle}"><div class="t">左眼(OS)使用時間</div><div class="v">${item.osDuration || "-"}</div></div>
             </div>
             ${alHtml}
             ${photoDoubleHtml}
@@ -419,17 +428,14 @@
             </div>
           `;
         } 
-        // ==========================================
-        // 類型 2：離焦大片
-        // ==========================================
+        // 2. 離焦大片
         else if (cardType === 'defocus_lens') {
-          badgeClass = "badge-defocus-lens";
           cardBodyHTML = `
             <div class="item"><div class="t">最近回診檢查日</div><div class="v">${item.lastVisit || "-"}</div></div>
             <div class="item"><div class="t">未回診天數</div><div class="v">${item.overdueDays ? item.overdueDays + ' 天' : "-"}</div></div>
             <div class="flex-row">
-              <div class="box box-blue"><div class="t">右眼(OD)鏡片時間</div><div class="v">${item.odDuration || "-"}</div></div>
-              <div class="box box-blue"><div class="t">左眼(OS)鏡片時間</div><div class="v">${item.osDuration || "-"}</div></div>
+              <div class="box" style="${odBoxStyle}"><div class="t">右眼(OD)鏡片時間</div><div class="v">${item.odDuration || "-"}</div></div>
+              <div class="box" style="${osBoxStyle}"><div class="t">左眼(OS)鏡片時間</div><div class="v">${item.osDuration || "-"}</div></div>
             </div>
             ${item.serviceDate ? `<div class="item" style="margin-top:7px;"><div class="t">售服日期</div><div class="v">${item.serviceDate}</div></div>` : ''}
             ${alHtml}
@@ -439,17 +445,14 @@
             </div>
           `;
         } 
-        // ==========================================
-        // 類型 3：離焦日拋
-        // ==========================================
+        // 3. 離焦日拋
         else if (cardType === 'defocus_daily') {
-          badgeClass = "badge-defocus-daily";
           cardBodyHTML = `
             <div class="item"><div class="t">最近回診檢查日</div><div class="v">${item.lastVisit || "-"}</div></div>
             <div class="item"><div class="t">未回診天數</div><div class="v">${item.overdueDays ? item.overdueDays + ' 天' : "-"}</div></div>
             <div class="flex-row">
-              <div class="box"><div class="t">右眼(OD)取件時間</div><div class="v">${item.odChangeDate || "-"}</div></div>
-              <div class="box"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
+              <div class="box" style="${odBoxStyle}"><div class="t">右眼(OD)取件時間</div><div class="v">${item.odChangeDate || "-"}</div></div>
+              <div class="box" style="${osBoxStyle}"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
             </div>
             ${alHtml}
             ${photoDoubleHtml}
@@ -458,15 +461,12 @@
             </div>
           `;
         } 
-        // ==========================================
-        // 類型 4：眼鏡 (一般光學)
-        // ==========================================
+        // 4. 眼鏡
         else if (cardType === 'glasses') {
-          badgeClass = "badge-glasses";
           cardBodyHTML = `
             <div class="flex-row">
-              <div class="box"><div class="t">右眼(OD)取件時間</div><div class="v">${item.odChangeDate || "-"}</div></div>
-              <div class="box"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
+              <div class="box" style="${odBoxStyle}"><div class="t">右眼(OD)取件時間</div><div class="v">${item.odChangeDate || "-"}</div></div>
+              <div class="box" style="${osBoxStyle}"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
             </div>
             ${item.longRemark ? `
             <div class="item" style="margin-top:7px;">
@@ -477,15 +477,12 @@
             ${photoRecordHtml}
           `;
         } 
-        // ==========================================
-        // 類型 5：RGP 高透氧硬式隱眼
-        // ==========================================
+        // 5. RGP 硬式
         else if (cardType === 'rgp') {
-          badgeClass = "badge-rgp";
           cardBodyHTML = `
             <div class="flex-row">
-              <div class="box"><div class="t">右眼(OD)取件時間</div><div class="v">${item.odChangeDate || "-"}</div></div>
-              <div class="box"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
+              <div class="box" style="${odBoxStyle}"><div class="t">右眼(OD)取件時間</div><div class="v">${item.odChangeDate || "-"}</div></div>
+              <div class="box" style="${osBoxStyle}"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
             </div>
             ${item.longRemark ? `
             <div class="item" style="margin-top:7px;">
@@ -501,7 +498,7 @@
           <div class="kid-card">
             <div class="kid-card-header">
               <div class="kid-name">${maskNameText(item.name)}</div>
-              <div class="prod-badge ${badgeClass}">${displayProductName}</div>
+              <div class="prod-badge" style="${badgeStyle}">${displayProductName}</div>
             </div>
             ${cardBodyHTML}
           </div>
@@ -510,6 +507,7 @@
 
       area.innerHTML = html;
       area.style.display = "block";
+      document.getElementById('warningMsg').style.display = "block";
       document.getElementById('linkBtn').style.display = "block";
       document.getElementById('addKidBtn').style.display = "block";
     }
