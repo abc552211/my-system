@@ -9,76 +9,56 @@
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { font-family: "Microsoft JhengHei", sans-serif; background: linear-gradient(135deg, #ebf0ec 0%, #e1e8e2 100%); display: flex; justify-content: center; align-items: flex-start; padding: 20px; margin: 0; min-height: 100vh; box-sizing: border-box; }
-    .card { background: white; padding: 25px; border-radius: 12px; width: 100%; max-width: 420px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); box-sizing: border-box; }
-    .header-main { text-align: center; color: #2c3e50; font-size: 22px; font-weight: bold; margin-bottom: 5px; }
-    .header-sub { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #a3b8a8; padding-bottom: 10px; }
+    body { font-family: "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif; background: #eef2ef; display: flex; justify-content: center; align-items: flex-start; padding: 20px; margin: 0; min-height: 100vh; box-sizing: border-box; }
+    .card { background: white; padding: 24px; border-radius: 10px; width: 100%; max-width: 420px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); box-sizing: border-box; }
+    .header-main { text-align: center; color: #2c3e50; font-size: 21px; font-weight: bold; margin-bottom: 4px; }
+    .header-sub { text-align: center; margin-bottom: 18px; border-bottom: 2px solid #94a899; padding-bottom: 8px; }
     #loginArea { display: none; }
-    label { font-size: 13.5px; font-weight: bold; color: #555; display: block; margin-top: 12px; }
-    input { width: 100%; padding: 11px; margin-top: 5px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 15px; color: #333; background-color: #fafbfc; outline: none; }
+    label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-top: 12px; }
+    input { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14.5px; color: #333; background-color: #fafbfc; outline: none; }
     input:focus { border-color: #8bb398; }
-    .btn { width: 100%; padding: 12px; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; margin-top: 12px; font-weight: bold; text-align: center; display: block; text-decoration: none; box-sizing: border-box; }
-    .btn-green { background: #6b9e7c; }
-    .btn-gray { background: #a4b0a8; display: none; }
-    .btn-blue { background: #6b8c9e; display: none; }
-    .btn-yellow { background: #d4c27b; display: none; color: #4a4a4a; }
-    #msg { text-align: center; margin-top: 12px; font-weight: bold; min-height: 20px; font-size: 13.5px; color: #6b8c9e; }
+    .btn { width: 100%; padding: 12px; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14.5px; margin-top: 12px; font-weight: bold; text-align: center; display: block; text-decoration: none; box-sizing: border-box; }
+    .btn-green { background: #5c8a6b; }
+    .btn-gray { background: #94a3b8; display: none; }
+    .btn-blue { background: #5b7c99; display: none; }
+    .btn-yellow { background: #c2b067; display: none; color: #2b2b2b; }
+    #msg { text-align: center; margin-top: 10px; font-weight: bold; min-height: 20px; font-size: 13px; color: #5b7c99; }
     .result-area { display: none; margin-top: 15px; }
-    .kid-card { background: #fdfdfd; border: 1px solid #e8ede9; border-radius: 8px; padding: 14px; margin-bottom: 12px; }
-    .kid-name { font-size: 17px; font-weight: bold; color: #5c8a6b; margin-top: 0; margin-bottom: 10px; border-bottom: 1px dashed #d1dcd4; padding-bottom: 5px; }
-    .item { margin-bottom: 8px; font-size: 13.5px; }
-    .t { font-size: 11.5px; color: #888; }
-    .v { font-size: 14.5px; font-weight: 600; color: #333; }
-    .flex-row { display: flex; gap: 8px; margin-top: 8px; }
-    .box { flex: 1; background: #f4f7f5; padding: 8px; border-radius: 6px; border-left: 3px solid #8bb398; font-size: 13px; }
-    .warning-text { font-size: 13px; font-weight: bold; color: #c06c6c; text-align: center; margin-top: 15px; display: none; }
+
+    /* 小卡樣式 */
+    .kid-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.03); }
+    .kid-card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #edf2f7; padding-bottom: 8px; margin-bottom: 10px; }
+    .kid-name { font-size: 17px; font-weight: bold; color: #2d3748; margin: 0; }
+    .prod-badge { font-size: 12px; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
+    .badge-ok { background: #edf7ed; color: #1e4620; border: 1px solid #c8e6c9; }
+    .badge-defocus-lens { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    .badge-defocus-daily { background: #fdf4ff; color: #86198f; border: 1px solid #f5d0fe; }
+    .badge-glasses { background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; }
+    .badge-rgp { background: #fff7ed; color: #9a3412; border: 1px solid #ffedd5; }
+
+    .item { margin-bottom: 7px; font-size: 13px; }
+    .t { font-size: 11.5px; color: #64748b; margin-bottom: 1px; }
+    .v { font-size: 14px; font-weight: 600; color: #1e293b; }
+    .flex-row { display: flex; gap: 8px; margin-top: 7px; }
+    .box { flex: 1; background: #f8fafc; padding: 8px 10px; border-radius: 5px; border-left: 3px solid #94a3b8; font-size: 12.5px; box-sizing: border-box; }
+    .box-green { border-left-color: #5c8a6b; background: #f4fbf6; }
+    .box-blue { border-left-color: #3b82f6; background: #f0f7ff; }
+
+    /* 衛教提示區塊 */
+    .edu-box { margin-top: 10px; font-size: 12px; line-height: 1.5; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 8px 10px; }
+
+    /* 點擊放大照片 */
+    .lens-img-clickable { width: 100%; max-height: 120px; object-fit: contain; border-radius: 4px; margin-top: 4px; cursor: pointer; border: 1px solid #cbd5e1; background: #fff; }
+    #imageModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.88); z-index: 10000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box; }
+    #imageModal img { max-width: 95%; max-height: 85vh; border-radius: 6px; object-fit: contain; }
+    #imageModal .close-btn { position: absolute; top: 18px; right: 22px; color: white; font-size: 30px; font-weight: bold; cursor: pointer; user-select: none; }
 
     /* 讀取遮罩 */
     #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(253, 251, 249, 0.96); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
     .glasses-loader { display: flex; align-items: center; justify-content: center; margin-bottom: 15px; }
     .lens { width: 36px; height: 36px; border: 3.5px solid #6d5c53; border-radius: 50%; background: rgba(156, 168, 158, 0.15); }
     .bridge { width: 14px; height: 3.5px; background: #6d5c53; margin: 0 -2px; }
-    .loading-text { color: #6d5c53; font-size: 14.5px; font-weight: bold; }
-    /* 照片點擊放大檢視 */
-    .lens-img-clickable {
-      width: 100%;
-      max-height: 120px;
-      object-fit: contain;
-      border-radius: 4px;
-      margin-top: 4px;
-      cursor: pointer;
-    }
-    #imageModal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.85);
-      z-index: 10000;
-      justify-content: center;
-      align-items: center;
-      padding: 15px;
-      box-sizing: border-box;
-    }
-    #imageModal img {
-      max-width: 95%;
-      max-height: 85vh;
-      border-radius: 8px;
-      object-fit: contain;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-    }
-    #imageModal .close-btn {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      color: white;
-      font-size: 28px;
-      font-weight: bold;
-      cursor: pointer;
-      user-select: none;
-    }
+    .loading-text { color: #6d5c53; font-size: 14px; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -90,6 +70,11 @@
       <div class="lens"></div>
     </div>
     <div class="loading-text" id="overlayText">視光資料載入中...</div>
+  </div>
+  <!-- 點擊放大檢視照片彈窗 -->
+  <div id="imageModal" onclick="closeImageModal()">
+    <span class="close-btn">&times;</span>
+    <img id="modalImg" src="" alt="放大照片" onclick="event.stopPropagation()">
   </div>
 
   <div class="card">
@@ -130,6 +115,7 @@
     let currentUid = "";
     let currentLiffName = ""; 
     let currentLiffPic = "";  
+    let productConfigMap = {};
 
     function showOverlay(text) {
       const overlay = document.getElementById('loadingOverlay');
@@ -141,12 +127,27 @@
       document.getElementById('loadingOverlay').style.display = 'none';
     }
 
+    function openImageModal(url) {
+      const modal = document.getElementById('imageModal');
+      const img = document.getElementById('modalImg');
+      img.src = url;
+      modal.style.display = 'flex';
+    }
+
+    function closeImageModal() {
+      const modal = document.getElementById('imageModal');
+      modal.style.display = 'none';
+      document.getElementById('modalImg').src = '';
+    }
+
     window.onload = async function() {
       showOverlay("讀取個人視光資料中...");
       
       if (window.supabase && window.supabase.createClient) {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       }
+
+      await loadGlobalConfig();
 
       try {
         await liff.init({ liffId: MY_LIFF_ID });
@@ -156,7 +157,6 @@
           currentLiffName = profile.displayName; 
           currentLiffPic = profile.pictureUrl;
 
-          // 依 UID 查詢已綁定的小朋友
           await fetchKidsByUID(currentUid);
         } else {
           hideOverlay();
@@ -168,9 +168,26 @@
       }
     };
 
+    async function loadGlobalConfig() {
+      try {
+        if (supabaseClient) {
+          const { data } = await supabaseClient
+            .from('system_settings')
+            .select('data')
+            .eq('id', 'global_config')
+            .maybeSingle();
+
+          if (data && data.data && data.data.productConfigMap) {
+            productConfigMap = data.data.productConfigMap;
+          }
+        }
+      } catch (e) {
+        console.warn("載入設定略過:", e);
+      }
+    }
+
     async function fetchKidsByUID(uid) {
       try {
-        // 查詢 line_uids 陣列包含此家長 UID 的客戶
         const { data, error } = await supabaseClient
           .from('customers')
           .select('*')
@@ -205,7 +222,6 @@
 
       showOverlay("資料配對與綁定中...");
 
-      // 自動在聊天室留存紀錄的輔助函式 (完全無 Emoji)
       const sendChatMessage = async (statusText, extraNote = "") => {
         if (liff.isInClient()) {
           try {
@@ -218,13 +234,12 @@
               text: msgText
             }]);
           } catch (err) {
-            console.warn("聊天室訊息發送失敗 (可能未取得權限或已由瀏覽器開啟):", err);
+            console.warn("聊天室訊息發送失敗:", err);
           }
         }
       };
 
       try {
-        // 1. 比對現有客戶
         const { data, error } = await supabaseClient
           .from('customers')
           .select('*')
@@ -240,7 +255,6 @@
         });
 
         if (matched) {
-          // 比對成功：將 UID 寫入客戶 line_uids 陣列
           let uids = matched.line_uids || [];
           if (!Array.isArray(uids)) uids = [];
           if (!uids.includes(currentUid)) {
@@ -251,14 +265,11 @@
               .eq('code', matched.code);
           }
 
-          // 發送聊天室留存訊息 (比對成功)
           await sendChatMessage("已完成線上配對綁定");
-
           hideOverlay();
           alert(`綁定成功！已為您關聯【${matched.name}】的視光追蹤紀錄。`);
           await fetchKidsByUID(currentUid);
         } else {
-          // 2. 比對失敗：檢查是否已有相同 UID 與姓名的待處理申請（防重複送出）
           const { data: existPending } = await supabaseClient
             .from('unbound_requests')
             .select('id')
@@ -273,7 +284,6 @@
             return;
           }
 
-          // 寫入待處理表
           await supabaseClient
             .from('unbound_requests')
             .insert([{
@@ -286,9 +296,7 @@
               status: 'pending'
             }]);
 
-          // 發送聊天室留存訊息 (待門市確認)
           await sendChatMessage("已送出申請", "資料待門市專人核對");
-
           showErr("門市尚未比對到此紀錄。已為您送出申請，門市專人將於 1-2 工作日內核對綁定！");
         }
       } catch (err) {
@@ -309,7 +317,6 @@
       document.getElementById('resArea').style.display = "none";
       document.getElementById('linkBtn').style.display = "none";
       document.getElementById('addKidBtn').style.display = "none";
-      document.getElementById('warningMsg').style.display = "none";
       document.getElementById('cancelBtn').style.display = "block";
       document.getElementById('msg').innerText = "請輸入另一位小朋友資料";
       document.getElementById('loginArea').style.display = "block";
@@ -320,7 +327,6 @@
       document.getElementById('resArea').style.display = "block";
       document.getElementById('linkBtn').style.display = "block";
       document.getElementById('addKidBtn').style.display = "block";
-      document.getElementById('warningMsg').style.display = "block";
       document.getElementById('msg').innerText = "";
     }
 
@@ -335,19 +341,7 @@
       document.getElementById('msg').innerText = text;
     }
 
-    function openImageModal(url) {
-      const modal = document.getElementById('imageModal');
-      const img = document.getElementById('modalImg');
-      img.src = url;
-      modal.style.display = 'flex';
-    }
-
-    function closeImageModal() {
-      const modal = document.getElementById('imageModal');
-      modal.style.display = 'none';
-      document.getElementById('modalImg').src = '';
-    }
-
+    // 依 5 大類型精準呈現卡片內容
     function renderData(dataArray) {
       document.getElementById('msg').style.color = "#5c8a6b";
       document.getElementById('msg').innerText = "已為您載入視光管理紀錄";
@@ -355,34 +349,167 @@
       
       const area = document.getElementById('resArea');
       let html = "";
+
       dataArray.forEach(function(item) {
-        html += `
-          <div class="kid-card">
-            <!-- 僅顯示姓名，不顯示客戶編號 -->
-            <div class="kid-name">${maskNameText(item.name)}</div>
-            <div class="item"><div class="t">商品方案</div><div class="v">${item.product || "-"}</div></div>
-            <div class="item"><div class="t">最近回診日</div><div class="v">${item.lastVisit || "-"}</div></div>
+        const rawProduct = (item.product || "").trim();
+        const conf = productConfigMap[rawProduct] || {};
+        
+        const displayProductName = conf.displayName || rawProduct || "視光方案";
+        
+        // 判定 5 大類型代碼
+        let cardType = conf.cardType;
+        if (!cardType) {
+          if (rawProduct.includes('離焦大片') || rawProduct.includes('離焦眼鏡') || rawProduct.includes('HOYA')) {
+            cardType = 'defocus_lens';
+          } else if (rawProduct.includes('日拋') || rawProduct.includes('酷柏')) {
+            cardType = 'defocus_daily';
+          } else if (rawProduct.includes('RGP') || rawProduct.includes('硬式')) {
+            cardType = 'rgp';
+          } else if (rawProduct.includes('眼鏡')) {
+            cardType = 'glasses';
+          } else {
+            cardType = 'ok';
+          }
+        }
+
+        let badgeClass = "badge-ok";
+        let cardBodyHTML = "";
+
+        // 共通：眼軸長 (AL) 區塊產生輔助
+        const alHtml = item.alCheckDate ? `
+          <div class="flex-row" style="margin-top:6px;">
+            <div class="box"><div class="t">AL 右眼軸長</div><div class="v">${item.alOD || "-"} mm</div></div>
+            <div class="box"><div class="t">AL 左眼軸長</div><div class="v">${item.alOS || "-"} mm</div></div>
+          </div>` : '';
+
+        // 共通：雙眼照片 (OD/OS 標示)
+        const photoDoubleHtml = (item.od_lens_photo || item.os_lens_photo) ? `
+          <div class="flex-row" style="margin-top:8px;">
+            ${item.od_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">右眼照 (點擊放大)</div><img src="${item.od_lens_photo}" class="lens-img-clickable" onclick="openImageModal('${item.od_lens_photo}')"></div>` : ''}
+            ${item.os_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">左眼照 (點擊放大)</div><img src="${item.os_lens_photo}" class="lens-img-clickable" onclick="openImageModal('${item.os_lens_photo}')"></div>` : ''}
+          </div>` : '';
+
+        // 共通：單張/合併照片 ([紀錄照] 標示，不分 OD/OS)
+        const singlePhotoSrc = item.od_lens_photo || item.os_lens_photo;
+        const photoRecordHtml = singlePhotoSrc ? `
+          <div style="margin-top:8px;">
+            <div class="box" style="text-align:center;">
+              <div class="t">紀錄照 (點擊放大)</div>
+              <img src="${singlePhotoSrc}" class="lens-img-clickable" onclick="openImageModal('${singlePhotoSrc}')">
+            </div>
+          </div>` : '';
+
+        // ==========================================
+        // 類型 1：OK 塑型片
+        // ==========================================
+        if (cardType === 'ok') {
+          badgeClass = "badge-ok";
+          cardBodyHTML = `
+            <div class="item"><div class="t">最近回診檢查日</div><div class="v">${item.lastVisit || "-"}</div></div>
             <div class="item"><div class="t">未回診天數</div><div class="v">${item.overdueDays ? item.overdueDays + ' 天' : "-"}</div></div>
             <div class="flex-row">
-              <div class="box"><div class="t">右眼(OD)使用時間</div><div class="v">${item.odDuration || "-"}</div></div>
-              <div class="box"><div class="t">左眼(OS)使用時間</div><div class="v">${item.osDuration || "-"}</div></div>
+              <div class="box box-green"><div class="t">右眼(OD)使用時間</div><div class="v">${item.odDuration || "-"}</div></div>
+              <div class="box box-green"><div class="t">左眼(OS)使用時間</div><div class="v">${item.osDuration || "-"}</div></div>
             </div>
-            ${item.alCheckDate ? `
-            <div class="flex-row" style="margin-top:6px;">
-              <div class="box"><div class="t">AL 右眼軸</div><div class="v">${item.alOD || "-"} mm</div></div>
-              <div class="box"><div class="t">AL 左眼軸</div><div class="v">${item.alOS || "-"} mm</div></div>
+            ${alHtml}
+            ${photoDoubleHtml}
+            <div class="edu-box" style="color: #991b1b; background: #fff5f5; border-color: #fed7d7;">
+              【提醒：OK鏡片建議 1.5 ~ 2 年定期更換】<br>
+              若不適請停止使用並就醫，正確用眼才不會讓效果會打折。
+            </div>
+          `;
+        } 
+        // ==========================================
+        // 類型 2：離焦大片
+        // ==========================================
+        else if (cardType === 'defocus_lens') {
+          badgeClass = "badge-defocus-lens";
+          cardBodyHTML = `
+            <div class="item"><div class="t">最近回診檢查日</div><div class="v">${item.lastVisit || "-"}</div></div>
+            <div class="item"><div class="t">未回診天數</div><div class="v">${item.overdueDays ? item.overdueDays + ' 天' : "-"}</div></div>
+            <div class="flex-row">
+              <div class="box box-blue"><div class="t">右眼(OD)鏡片時間</div><div class="v">${item.odDuration || "-"}</div></div>
+              <div class="box box-blue"><div class="t">左眼(OS)鏡片時間</div><div class="v">${item.osDuration || "-"}</div></div>
+            </div>
+            ${item.serviceDate ? `<div class="item" style="margin-top:7px;"><div class="t">售服日期</div><div class="v">${item.serviceDate}</div></div>` : ''}
+            ${alHtml}
+            ${photoRecordHtml}
+            <div class="edu-box">
+              眼鏡需每日以冷水與中性洗碗精清洗並擦乾，正確用眼才不會讓效果會打折。
+            </div>
+          `;
+        } 
+        // ==========================================
+        // 類型 3：離焦日拋
+        // ==========================================
+        else if (cardType === 'defocus_daily') {
+          badgeClass = "badge-defocus-daily";
+          cardBodyHTML = `
+            <div class="item"><div class="t">最近回診檢查日</div><div class="v">${item.lastVisit || "-"}</div></div>
+            <div class="item"><div class="t">未回診天數</div><div class="v">${item.overdueDays ? item.overdueDays + ' 天' : "-"}</div></div>
+            <div class="flex-row">
+              <div class="box"><div class="t">右眼(OD)取件時間</div><div class="v">${item.odChangeDate || "-"}</div></div>
+              <div class="box"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
+            </div>
+            ${alHtml}
+            ${photoDoubleHtml}
+            <div class="edu-box">
+              日拋需每日拋棄不可重複配戴，若不適請停止使用並就醫，正確用眼才不會讓效果會打折。
+            </div>
+          `;
+        } 
+        // ==========================================
+        // 類型 4：眼鏡 (一般光學)
+        // ==========================================
+        else if (cardType === 'glasses') {
+          badgeClass = "badge-glasses";
+          cardBodyHTML = `
+            <div class="flex-row">
+              <div class="box"><div class="t">右眼(OD)取件時間</div><div class="v">${item.odChangeDate || "-"}</div></div>
+              <div class="box"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
+            </div>
+            ${item.longRemark ? `
+            <div class="item" style="margin-top:7px;">
+              <div class="t">備註</div>
+              <div class="v" style="font-weight:500; font-size:13.5px; color:#334155; background:#f8fafc; padding:6px 8px; border-radius:4px; border:1px solid #e2e8f0; margin-top:2px;">${item.longRemark}</div>
             </div>` : ''}
-            ${(item.od_lens_photo || item.os_lens_photo) ? `
-            <div class="flex-row" style="margin-top:8px;">
-              ${item.od_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">右眼鏡片照 (點擊放大)</div><img src="${item.od_lens_photo}" class="lens-img-clickable" onclick="openImageModal('${item.od_lens_photo}')"></div>` : ''}
-              ${item.os_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">左眼鏡片照 (點擊放大)</div><img src="${item.os_lens_photo}" class="lens-img-clickable" onclick="openImageModal('${item.os_lens_photo}')"></div>` : ''}
+            ${alHtml}
+            ${photoRecordHtml}
+          `;
+        } 
+        // ==========================================
+        // 類型 5：RGP 高透氧硬式隱眼
+        // ==========================================
+        else if (cardType === 'rgp') {
+          badgeClass = "badge-rgp";
+          cardBodyHTML = `
+            <div class="flex-row">
+              <div class="box"><div class="t">右眼(OD)取件時間</div><div class="v">${item.odChangeDate || "-"}</div></div>
+              <div class="box"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
+            </div>
+            ${item.longRemark ? `
+            <div class="item" style="margin-top:7px;">
+              <div class="t">備註</div>
+              <div class="v" style="font-weight:500; font-size:13.5px; color:#334155; background:#f8fafc; padding:6px 8px; border-radius:4px; border:1px solid #e2e8f0; margin-top:2px;">${item.longRemark}</div>
             </div>` : ''}
+            ${alHtml}
+            ${photoDoubleHtml}
+          `;
+        }
+
+        html += `
+          <div class="kid-card">
+            <div class="kid-card-header">
+              <div class="kid-name">${maskNameText(item.name)}</div>
+              <div class="prod-badge ${badgeClass}">${displayProductName}</div>
+            </div>
+            ${cardBodyHTML}
           </div>
         `;
       });
+
       area.innerHTML = html;
       area.style.display = "block";
-      document.getElementById('warningMsg').style.display = "block"; 
       document.getElementById('linkBtn').style.display = "block";
       document.getElementById('addKidBtn').style.display = "block";
     }
