@@ -39,6 +39,46 @@
     .lens { width: 36px; height: 36px; border: 3.5px solid #6d5c53; border-radius: 50%; background: rgba(156, 168, 158, 0.15); }
     .bridge { width: 14px; height: 3.5px; background: #6d5c53; margin: 0 -2px; }
     .loading-text { color: #6d5c53; font-size: 14.5px; font-weight: bold; }
+    /* 照片點擊放大檢視 */
+    .lens-img-clickable {
+      width: 100%;
+      max-height: 120px;
+      object-fit: contain;
+      border-radius: 4px;
+      margin-top: 4px;
+      cursor: pointer;
+    }
+    #imageModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+      padding: 15px;
+      box-sizing: border-box;
+    }
+    #imageModal img {
+      max-width: 95%;
+      max-height: 85vh;
+      border-radius: 8px;
+      object-fit: contain;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+    #imageModal .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: white;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -295,6 +335,19 @@
       document.getElementById('msg').innerText = text;
     }
 
+    function openImageModal(url) {
+      const modal = document.getElementById('imageModal');
+      const img = document.getElementById('modalImg');
+      img.src = url;
+      modal.style.display = 'flex';
+    }
+
+    function closeImageModal() {
+      const modal = document.getElementById('imageModal');
+      modal.style.display = 'none';
+      document.getElementById('modalImg').src = '';
+    }
+
     function renderData(dataArray) {
       document.getElementById('msg').style.color = "#5c8a6b";
       document.getElementById('msg').innerText = "已為您載入視光管理紀錄";
@@ -321,8 +374,8 @@
             </div>` : ''}
             ${(item.od_lens_photo || item.os_lens_photo) ? `
             <div class="flex-row" style="margin-top:8px;">
-              ${item.od_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">右眼鏡片照</div><img src="${item.od_lens_photo}" style="width:100%; max-height:120px; object-fit:contain; border-radius:4px; margin-top:4px;"></div>` : ''}
-              ${item.os_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">左眼鏡片照</div><img src="${item.os_lens_photo}" style="width:100%; max-height:120px; object-fit:contain; border-radius:4px; margin-top:4px;"></div>` : ''}
+              ${item.od_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">右眼鏡片照 (點擊放大)</div><img src="${item.od_lens_photo}" class="lens-img-clickable" onclick="openImageModal('${item.od_lens_photo}')"></div>` : ''}
+              ${item.os_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">左眼鏡片照 (點擊放大)</div><img src="${item.os_lens_photo}" class="lens-img-clickable" onclick="openImageModal('${item.os_lens_photo}')"></div>` : ''}
             </div>` : ''}
           </div>
         `;
