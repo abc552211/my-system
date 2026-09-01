@@ -158,6 +158,21 @@
           currentLiffName = profile.displayName; 
           currentLiffPic = profile.pictureUrl;
 
+          // ★ 新增：家長一開啟 LIFF，自動將最新暱稱與大頭照同步/更新至雲端資料庫
+          if (supabaseClient && currentUid) {
+            supabaseClient
+              .from('line_profiles')
+              .upsert({
+                uid: currentUid,
+                display_name: currentLiffName || '',
+                picture_url: currentLiffPic || '',
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'uid' })
+              .then(({ error }) => {
+                if (error) console.warn("同步個人 LINE 資訊失敗:", error);
+              });
+          }
+
           await fetchKidsByUID(currentUid);
         } else {
           hideOverlay();
