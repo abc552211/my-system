@@ -407,11 +407,14 @@
         const odBoxStyle = `background: ${hexToRgba(odCol, 0.06)}; border-left: 3.5px solid ${odCol};`;
         const osBoxStyle = `background: ${hexToRgba(osCol, 0.06)}; border-left: 3.5px solid ${osCol};`;
 
-        // 1. 眼軸長度區塊 (AL)
-        const alHtml = item.alCheckDate ? `
+        // 1. 眼軸長度區塊 (AL) ★ 嚴格條件：必須有明確 AL 檢查日且有測量值才顯示
+        const hasValidAlDate = item.alCheckDate && item.alCheckDate.trim() !== '' && item.alCheckDate.trim() !== '-';
+        const hasAlValue = (item.alOD && item.alOD.trim() !== '' && item.alOD.trim() !== '-') || (item.alOS && item.alOS.trim() !== '' && item.alOS.trim() !== '-');
+
+        const alHtml = (hasValidAlDate && hasAlValue) ? `
           <div class="flex-row" style="margin-top:6px;">
-            <div class="box"><div class="t">AL 右眼軸長</div><div class="v">${item.alOD || "-"} mm</div></div>
-            <div class="box"><div class="t">AL 左眼軸長</div><div class="v">${item.alOS || "-"} mm</div></div>
+            <div class="box"><div class="t">AL 右眼軸長 (${item.alCheckDate})</div><div class="v">${item.alOD || "-"} mm</div></div>
+            <div class="box"><div class="t">AL 左眼軸長 (${item.alCheckDate})</div><div class="v">${item.alOS || "-"} mm</div></div>
           </div>` : '';
 
         // 2. 照片渲染邏輯 (★ 支援動態切換：雙眼照 OR 紀錄照1與紀錄照2)
