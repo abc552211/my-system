@@ -395,6 +395,10 @@
           }
         }
 
+        // 讀取後台設定的動態開關
+        const isRecordPhoto = conf.isRecordPhoto !== undefined ? conf.isRecordPhoto : (cardType === 'glasses');
+        const showLongRemark = conf.showLongRemark !== undefined ? conf.showLongRemark : (cardType === 'glasses' || cardType === 'rgp');
+
         const badgeCol = conf.badgeColor || '#5c8a6b';
         const odCol = conf.odColor || '#5c8a6b';
         const osCol = conf.osColor || '#3b82f6';
@@ -403,30 +407,69 @@
         const odBoxStyle = `background: ${hexToRgba(odCol, 0.06)}; border-left: 3.5px solid ${odCol};`;
         const osBoxStyle = `background: ${hexToRgba(osCol, 0.06)}; border-left: 3.5px solid ${osCol};`;
 
-        let cardBodyHTML = "";
-
+        // 1. 眼軸長度區塊 (AL)
         const alHtml = item.alCheckDate ? `
           <div class="flex-row" style="margin-top:6px;">
             <div class="box"><div class="t">AL 右眼軸長</div><div class="v">${item.alOD || "-"} mm</div></div>
             <div class="box"><div class="t">AL 左眼軸長</div><div class="v">${item.alOS || "-"} mm</div></div>
           </div>` : '';
 
-        const photoDoubleHtml = (item.od_lens_photo || item.os_lens_photo) ? `
-          <div class="flex-row" style="margin-top:8px;">
-            ${item.od_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">右眼照 (點擊放大)</div><img src="${item.od_lens_photo}" class="lens-img-clickable" onclick="openImageModal('${item.od_lens_photo}')"></div>` : ''}
-            ${item.os_lens_photo ? `<div class="box" style="text-align:center;"><div class="t">左眼照 (點擊放大)</div><img src="${item.os_lens_photo}" class="lens-img-clickable" onclick="openImageModal('${item.os_lens_photo}')"></div>` : ''}
+        // 2. 照片渲染邏輯 (★ 支援動態切換：雙眼照 OR 紀錄照1與紀錄照2)
+        let photoHtml = "";
+        const photo1 = item.od_lens_photo;
+        const photo2 = item.os_lens_photo;
+
+        if (photo1 || photo2) {
+          if (isRecordPhoto) {
+            // ★ 紀錄照模式：顯示「紀錄照1」與「紀錄照2」
+            if (photo1 && photo2) {
+              photoHtml = `
+                <div class="flex-row" style="margin-top:8px;">
+                  <div class="box" style="text-align:center;"><div class="t">紀錄照 1 (點擊放大)</div><img src="${photo1}" class="lens-img-clickable" onclick="openImageModal('${photo1}')"></div>
+                  <div class="box" style="text-align:center;"><div class="t">紀錄照 2 (點擊放大)</div><img src="${photo2}" class="lens-img-clickable" onclick="openImageModal('${photo2}')"></div>
+                </div>`;
+            } else {
+              const singleSrc = photo1 || photo2;
+              photoHtml = `
+                <div style="margin-top:8px;">
+                  <div class="box" style="text-align:center;">
+                    <div class="t">紀錄照 (點擊放大)</div>
+                    <img src="${singleSrc}" class="lens-img-clickable" onclick="openImageModal('${singleSrc}')">
+                  </div>
+                </div>`;
+            }
+          } else {
+            // ★ 標準雙眼醫療模式：顯示「右眼照 (OD)」與「左眼照 (OS)」
+            if (photo1 && photo2) {
+              photoHtml = `
+                <div class="flex-row" style="margin-top:8px;">
+                  <div class="box" style="text-align:center;"><div class="t">右眼照 OD (點擊放大)</div><img src="${photo1}" class="lens-img-clickable" onclick="openImageModal('${photo1}')"></div>
+                  <div class="box" style="text-align:center;"><div class="t">左眼照 OS (點擊放大)</div><img src="${photo2}" class="lens-img-clickable" onclick="openImageModal('${photo2}')"></div>
+                </div>`;
+            } else if (photo1) {
+              photoHtml = `
+                <div style="margin-top:8px;">
+                  <div class="box" style="text-align:center;"><div class="t">右眼照 OD (點擊放大)</div><img src="${photo1}" class="lens-img-clickable" onclick="openImageModal('${photo1}')"></div>
+                </div>`;
+            } else if (photo2) {
+              photoHtml = `
+                <div style="margin-top:8px;">
+                  <div class="box" style="text-align:center;"><div class="t">左眼照 OS (點擊放大)</div><img src="${photo2}" class="lens-img-clickable" onclick="openImageModal('${photo2}')"></div>
+                </div>`;
+            }
+          }
+        }
+
+        // 3. 長期備註區塊 (★ 由後台勾選開關決定是否顯示)
+        const remarkHtml = (showLongRemark && item.longRemark) ? `
+          <div class="item" style="margin-top:7px;">
+            <div class="t">備註說明</div>
+            <div class="v" style="font-weight:500; font-size:13.5px; color:#334155; background:#f8fafc; padding:6px 8px; border-radius:4px; border:1px solid #e2e8f0; margin-top:2px;">${item.longRemark}</div>
           </div>` : '';
 
-        const singlePhotoSrc = item.od_lens_photo || item.os_lens_photo;
-        const photoRecordHtml = singlePhotoSrc ? `
-          <div style="margin-top:8px;">
-            <div class="box" style="text-align:center;">
-              <div class="t">紀錄照 (點擊放大)</div>
-              <img src="${singlePhotoSrc}" class="lens-img-clickable" onclick="openImageModal('${singlePhotoSrc}')">
-            </div>
-          </div>` : '';
+        // 4. 動態組合卡片內容
+        let cardBodyHTML = "";
 
-        // 1. OK 塑型片 (換片提醒與衛教整合於卡片內)
         if (cardType === 'ok') {
           cardBodyHTML = `
             <div class="item"><div class="t">最近回診檢查日</div><div class="v">${item.lastVisit || "-"}</div></div>
@@ -436,15 +479,14 @@
               <div class="box" style="${osBoxStyle}"><div class="t">左眼(OS)使用時間</div><div class="v">${item.osDuration || "-"}</div></div>
             </div>
             ${alHtml}
-            ${photoDoubleHtml}
+            ${photoHtml}
+            ${remarkHtml}
             <div class="edu-box" style="color: #991b1b; background: #fff5f5; border-color: #fed7d7;">
               【提醒：OK鏡片建議 1.5 ~ 2 年定期更換】<br>
               若不適請停止使用並就醫，正確用眼才不會讓效果會打折。
             </div>
           `;
-        } 
-        // 2. 離焦大片
-        else if (cardType === 'defocus_lens') {
+        } else if (cardType === 'defocus_lens') {
           cardBodyHTML = `
             <div class="item"><div class="t">最近回診檢查日</div><div class="v">${item.lastVisit || "-"}</div></div>
             <div class="item"><div class="t">未回診天數</div><div class="v">${item.overdueDays ? item.overdueDays + ' 天' : "-"}</div></div>
@@ -454,14 +496,13 @@
             </div>
             ${item.serviceDate ? `<div class="item" style="margin-top:7px;"><div class="t">售服日期</div><div class="v">${item.serviceDate}</div></div>` : ''}
             ${alHtml}
-            ${photoRecordHtml}
+            ${photoHtml}
+            ${remarkHtml}
             <div class="edu-box">
               眼鏡需每日以冷水與中性洗碗精清洗並擦乾，正確用眼才不會讓效果會打折。
             </div>
           `;
-        } 
-        // 3. 離焦日拋
-        else if (cardType === 'defocus_daily') {
+        } else if (cardType === 'defocus_daily') {
           cardBodyHTML = `
             <div class="item"><div class="t">最近回診檢查日</div><div class="v">${item.lastVisit || "-"}</div></div>
             <div class="item"><div class="t">未回診天數</div><div class="v">${item.overdueDays ? item.overdueDays + ' 天' : "-"}</div></div>
@@ -470,40 +511,31 @@
               <div class="box" style="${osBoxStyle}"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
             </div>
             ${alHtml}
-            ${photoDoubleHtml}
+            ${photoHtml}
+            ${remarkHtml}
             <div class="edu-box">
               日拋需每日拋棄不可重複配戴，若不適請停止使用並就醫，正確用眼才不會讓效果會打折。
             </div>
           `;
-        } 
-        // 4. 眼鏡
-        else if (cardType === 'glasses') {
+        } else if (cardType === 'glasses') {
           cardBodyHTML = `
             <div class="flex-row">
               <div class="box" style="${odBoxStyle}"><div class="t">右眼(OD)取件時間</div><div class="v">${item.odChangeDate || "-"}</div></div>
               <div class="box" style="${osBoxStyle}"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
             </div>
-            ${item.longRemark ? `
-            <div class="item" style="margin-top:7px;">
-              <div class="t">備註</div>
-              <div class="v" style="font-weight:500; font-size:13.5px; color:#334155; background:#f8fafc; padding:6px 8px; border-radius:4px; border:1px solid #e2e8f0; margin-top:2px;">${item.longRemark}</div>
-            </div>` : ''}
-            ${photoRecordHtml}
+            ${alHtml}
+            ${photoHtml}
+            ${remarkHtml}
           `;
-        } 
-        // 5. RGP 硬式
-        else if (cardType === 'rgp') {
+        } else if (cardType === 'rgp') {
           cardBodyHTML = `
             <div class="flex-row">
               <div class="box" style="${odBoxStyle}"><div class="t">右眼(OD)取件時間</div><div class="v">${item.odChangeDate || "-"}</div></div>
               <div class="box" style="${osBoxStyle}"><div class="t">左眼(OS)取件時間</div><div class="v">${item.osChangeDate || "-"}</div></div>
             </div>
-            ${item.longRemark ? `
-            <div class="item" style="margin-top:7px;">
-              <div class="t">備註</div>
-              <div class="v" style="font-weight:500; font-size:13.5px; color:#334155; background:#f8fafc; padding:6px 8px; border-radius:4px; border:1px solid #e2e8f0; margin-top:2px;">${item.longRemark}</div>
-            </div>` : ''}
-            ${photoDoubleHtml}
+            ${alHtml}
+            ${photoHtml}
+            ${remarkHtml}
           `;
         }
 
